@@ -13,14 +13,14 @@ const of = (step, task) => task.answers?.[step.id] ?? null;
 registry.add("step-part", {
   id: "answers",
   order: 10,
-  title: () => t("answers.title", "我们的回答"),
+  title: () => t("answers.title", "我们的方案"),
   data: of,
   summary: (step, task) => of(step, task)?.answer ?? null,
   render(step, task, el) {
     const mine = of(step, task);
-    el.append(h("div", { class: "label" }, "// ", t("answers.title", "我们的回答")));
+    el.append(h("div", { class: "label" }, "// ", t("answers.title", "我们的方案")));
     if (!mine) {
-      el.append(h("p", { class: "dim" }, t("answers.none", "还没有回答。组长起草框架后，它会出现在这里。")));
+      el.append(h("p", { class: "dim" }, t("answers.none", "还没有方案。组长起草框架后，它会出现在这里。")));
       return;
     }
     el.append(h("p", { class: "bright" }, rich(mine.answer)));

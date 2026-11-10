@@ -48,7 +48,7 @@ class CheckTaskTest(unittest.TestCase):
         self.assertEqual(check_task({"title": "T", "goal": "G"}), [])
 
     def test_not_an_object(self):
-        self.assertEqual(check_task([]), ["the task record must be an object"])
+        self.assertEqual(check_task([]), ["the record must be an object"])
 
     def test_missing_title(self):
         record = task()
@@ -103,6 +103,34 @@ class CheckTaskTest(unittest.TestCase):
             self.assertEqual(check_task({"title": "T", "goal": "G"}), [])
             self.assertEqual(check_task({"title": "T", "goal": "G", "steps": []}),
                              ["steps: no installed module uses this key"])
+
+
+class ModuleRulesTest(unittest.TestCase):
+    def test_deliverables(self):
+        record = task()
+        items = record["project"]["deliverables"]
+        items.append(dict(items[0]))
+        items[1]["uses"] = ["report", "none"]
+        self.assertEqual(check_task(record), [
+            'project.deliverables[1].uses: a deliverable cannot use itself',
+            'project.deliverables[1].uses: "none" is not a deliverable id',
+            'project.deliverables[2].id: "talk" is used by an earlier deliverable',
+        ])
+
+    def test_a_step_for_an_unknown_deliverable(self):
+        record = task()
+        record["steps"][1]["for"] = ["poster"]
+        self.assertEqual(check_task(record), ['steps[1].for: "poster" is not an id in project.deliverables'])
+        del record["project"]
+        self.assertEqual(check_task(record), [
+            'steps[0].for: "talk" is not an id in project.deliverables',
+            'steps[1].for: "poster" is not an id in project.deliverables',
+        ])
+
+    def test_task_needs_questions(self):
+        record = task()
+        record["task"] = {"summary": "x", "questions": []}
+        self.assertTrue(check_task(record))
 
 
 class CheckProjectTest(unittest.TestCase):

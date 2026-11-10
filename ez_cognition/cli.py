@@ -48,7 +48,7 @@ def cmd_check(paths: Paths) -> int:
     if not _print_report(report):
         return 1
     if not any(name.endswith(".json") and not name.startswith(".local") for name in report):
-        print("no task record in %s/. See agent-guide.md, \"The task record\"." % DATA_DIR)
+        print("no record in %s/. See agent-guide.md, \"The record\"." % DATA_DIR)
         return 1
     print("OK")
     return 0
@@ -67,11 +67,11 @@ def cmd_open(paths: Paths) -> int:
     report = check_project(paths)
     tasks = {name: problems for name, problems in report.items() if not name.startswith(".local")}
     if not tasks:
-        print("tasks: none. If the user is the leader, write the task record. "
+        print("records: none. If the user is the leader, write the record. "
               "If not, tell the user to ask the leader.")
     for name, problems in tasks.items():
         state = "OK" if not problems else "%d problem(s), run `check`" % len(problems)
-        print("task: %s (%s)" % (Path(name).stem, state))
+        print("record: %s (%s)" % (Path(name).stem, state))
     user = read_json(paths.user)
     name = user.get("name") if isinstance(user, dict) else ""
     if name:
@@ -102,7 +102,7 @@ def cmd_init(paths: Paths) -> int:
     if not claude.is_file():
         write_text(claude, "@AGENTS.md\n")
         print("created CLAUDE.md")
-    print("next: write a task record in %s/ (see agent-guide.md), then run `check`." % DATA_DIR)
+    print("next: write the record in %s/ (see agent-guide.md), then run `check`." % DATA_DIR)
     return 0
 
 
@@ -129,7 +129,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument("--root", help="the project root. Default: the nearest directory with %s/" % DATA_DIR)
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("open", help="start the server if it does not run, and show the page")
-    commands.add_parser("check", help="validate the task records")
+    commands.add_parser("check", help="validate the records")
     commands.add_parser("init", help="leader setup: create %s/" % DATA_DIR)
     commands.add_parser("stop", help="stop the server now (it serves all projects)")
     run = commands.add_parser("serve", help="run the server in this terminal (all projects)")

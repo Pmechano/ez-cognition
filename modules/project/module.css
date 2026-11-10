@@ -1,0 +1,22 @@
+.proj-about { padding: 0.4rem 0 0.2rem 6ch; }
+
+.proj-part { padding-top: 0.5rem; }
+
+.proj-part > .label { padding-left: 6ch; }
+
+.proj-row {
+  display: grid;
+  grid-template-columns: minmax(10ch, 16ch) minmax(0, 1fr);
+  gap: 0 2ch;
+  padding: 0.3rem 0 0.3rem 6ch;
+  border-top: 1px solid var(--rule);
+}
+
+.proj-part > .label + .proj-row { border-top: 0; }
+
+.proj-value { overflow-wrap: anywhere; }
+
+@media (max-width: 760px) {
+  .proj-about, .proj-part > .label { padding-left: 0; }
+  .proj-row { grid-template-columns: minmax(0, 1fr); padding-left: 0; }
+}

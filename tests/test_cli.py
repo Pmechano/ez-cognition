@@ -90,7 +90,7 @@ class CheckCommandTest(unittest.TestCase):
         with folder:
             code, out = run("--root", str(paths.root), "check")
             self.assertEqual(code, 1)
-            self.assertIn("no task record", out)
+            self.assertIn("no record", out)
 
     def test_open_without_the_data_directory(self):
         folder, paths = project({})

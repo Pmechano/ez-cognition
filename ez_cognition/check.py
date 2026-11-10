@@ -1,4 +1,4 @@
-"""Validate the task records.
+"""Validate the records.
 
 The core knows only `core.schema.json`. Each module in `modules/` can add:
 
@@ -113,9 +113,9 @@ def _schemas() -> List[Tuple[str, Dict[str, Any], Any]]:
 
 
 def check_task(task: Any) -> List[str]:
-    """The problems in one task record. An empty list means that it is correct."""
+    """The problems in one record. An empty list means that it is correct."""
     if not isinstance(task, dict):
-        return ["the task record must be an object"]
+        return ["the record must be an object"]
     problems: List[str] = []
     known = set()
     for name, schema, hook in _schemas():

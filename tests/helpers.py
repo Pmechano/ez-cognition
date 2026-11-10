@@ -11,12 +11,22 @@ TASK = {
     "title": "Talk",
     "goal": "Say one thing in ten minutes.",
     "sources": ["docs/syllabus.md"],
-    "logistics": {
+    "project": {
         "summary": "2026-12-07, 10 minutes",
+        "about": "A group talk and a report on one topic.",
+        "deliverables": [
+            {"id": "talk", "title": "Talk", "what": "Ten minutes.", "due": "2026-12-07"},
+            {"id": "report", "title": "Report", "what": "Eight pages.", "uses": ["talk"]},
+        ],
         "items": [{"label": "Date", "value": "2026-12-07", "from": "docs/syllabus.md"}],
     },
+    "task": {
+        "summary": "Show that a model refuses in chat but obeys a robot.",
+        "questions": [{"ask": "What do we do?", "answer": "We test a model.", "detail": ["Five tasks."]}],
+        "terms": [{"term": "Refusal", "means": "The model says no."}],
+    },
     "steps": [
-        {"id": "risk", "title": "Show the risk", "ask": "Explain the risk.", "detail": ["ILO1"]},
+        {"id": "risk", "title": "Show the risk", "ask": "Explain the risk.", "detail": ["ILO1"], "for": ["talk"]},
         {"id": "defense", "title": "Compare the defenses", "ask": "Compare the defenses."},
     ],
     "answers": {

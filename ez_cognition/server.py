@@ -3,8 +3,8 @@
 All projects on a computer share this server, its port and its page. The
 projects come from the list in ~/.ez-cognition/projects.json, which `open`
 writes. The server serves the core, the modules and the themes as static
-files, the task records as JSON, and the personal state. It tells the open
-pages when a task record or the list changes. It stops by itself when no
+files, the records as JSON, and the personal state. It tells the open
+pages when a record or the list changes. It stops by itself when no
 page has been open for a while: nothing stays resident.
 
 An agent can be on the other side of WSL, where it cannot reach this port.
@@ -188,7 +188,7 @@ class App:
         return None
 
     def stamp(self) -> List[Any]:
-        """A value that changes when the list of projects or a task record changes."""
+        """A value that changes when the list of projects or a record changes."""
         out: List[Any] = []
         for file in [self.home.projects] + [f for p in self.projects() for f in p.paths.task_files()]:
             try:
@@ -243,7 +243,7 @@ class App:
             return {"ok": False, "error": "no project with this id"}
         file = project.paths.task_file(task_id)
         if file is None:
-            return {"ok": False, "error": "no task record with this id"}
+            return {"ok": False, "error": "no record with this id"}
         try:
             task = load_json(file)
         except ValueError as err:

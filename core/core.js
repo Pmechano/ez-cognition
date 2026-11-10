@@ -2,7 +2,7 @@
 //
 // The core knows nothing about tasks. It gives the modules four things:
 // a registry, a page shell with folding panels, the personal state, and a
-// refresh when a task record changes. Everything that the page shows comes
+// refresh when a record changes. Everything that the page shows comes
 // from a module in /modules/. The core must still run with no module.
 //
 // One page shows all the projects on this computer. A project has one or
@@ -51,7 +51,7 @@ export function h(tag, attrs, ...kids) {
   return el;
 }
 
-// Text from a task record. `like this` becomes code. Nothing else is markup.
+// Text from a record. `like this` becomes code. Nothing else is markup.
 export function rich(text) {
   const out = document.createDocumentFragment();
   for (const part of String(text ?? "").split(/(`[^`]+`)/)) {
@@ -261,7 +261,7 @@ function trouble() {
   return h(
     "div",
     { class: "trouble" },
-    h("div", { class: "hot" }, t("core.trouble", "(*) 任务记录有问题。把下面的内容交给你的 agent。")),
+    h("div", { class: "hot" }, t("core.trouble", "(*) 记录有问题。把下面的内容交给你的 agent。")),
     h("ul", { class: "points dim" }, lines.map((line) => h("li", null, line))),
   );
 }
@@ -312,7 +312,7 @@ function body() {
     return h(
       "main",
       null,
-      h("h1", null, t("core.empty", "还没有任务记录")),
+      h("h1", null, t("core.empty", "还没有记录")),
       h("p", null, t("core.empty.how", "让组长的 agent 按 agent-guide.md 写一份。写好后，这个页面会自己刷新。")),
       panels(),
     );
@@ -335,13 +335,13 @@ function status() {
     return h("footer", { class: "status hot" }, t("core.offline", "(*) 服务已停止。让你的 agent 运行 open，这个页面会自己恢复。"));
   }
   const time = app.updated ? app.updated.toLocaleTimeString(undefined, { hour12: false }) : "";
-  return h("footer", { class: "status dim" }, t("core.online", "已连接。任务记录变了，页面会自己刷新。"), time && ` ${t("core.updated", "上次读取")} ${time}`);
+  return h("footer", { class: "status dim" }, t("core.online", "已连接。记录变了，页面会自己刷新。"), time && ` ${t("core.updated", "上次读取")} ${time}`);
 }
 
 function render() {
   const name = project()?.name;
   document.title = [app.task?.title, name, "ez-cognition"].filter(Boolean).join(" · ");
-  document.getElementById("app").replaceChildren(...top(), body(), status());
+  document.getElementById("app").replaceChildren(...[...top(), body(), status()].filter(Boolean));
 }
 
 // ---------- data ----------

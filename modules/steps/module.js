@@ -1,7 +1,7 @@
 // Panel: the task, step by step. One row for each step.
-// Data: task.steps = [{ id, title, ask, detail?: [..], from? }]
+// Data: record.steps = [{ id, title, ask, detail?: [..], for?: [deliverable ids], from? }]
 //
-// This module shows only what the task asks. What the group does about a
+// This module shows only what the step asks. What the group does about a
 // step comes from other modules. They add a "step-part":
 //
 //   registry.add("step-part", {
@@ -13,6 +13,13 @@
 //   })
 
 import { registry, h, rich, points, sig, t, fold, state } from "/core/core.js";
+
+// The deliverables that use a step, by their titles in the project panel.
+function usedIn(step, task) {
+  if (!step.for?.length) return null;
+  const byId = new Map((task.project?.deliverables ?? []).map((d) => [d.id, d.title]));
+  return step.for.map((id) => byId.get(id) ?? id).join("、");
+}
 
 // task title -> (step id -> signature) at the last render, to show what changed.
 const before = new Map();
@@ -52,7 +59,7 @@ function row(step, number, task, changed) {
         "span",
         { class: line ? "step-line" : "step-line dim" },
         h("span", { class: "dim" }, "=> "),
-        line ? rich(line) : t("steps.none", "还没有回答"),
+        line ? rich(line) : t("steps.none", "还没有方案"),
       ),
       h("span", { class: "step-flag" }, flag),
     ],
@@ -60,9 +67,10 @@ function row(step, number, task, changed) {
       const ask = h(
         "div",
         { class: "step-ask" },
-        h("div", { class: "label" }, "// ", t("steps.ask", "任务要求的")),
+        h("div", { class: "label" }, "// ", t("steps.ask", "这一步要做的")),
         h("p", null, rich(step.ask)),
         step.detail?.length > 0 && points(step.detail),
+        usedIn(step, task) && h("div", { class: "dim" }, t("steps.for", "用在："), usedIn(step, task)),
         step.from && h("div", { class: "from" }, t("core.sources", "来源："), step.from),
       );
       const ours = h("div", { class: "step-ours" });
@@ -107,9 +115,9 @@ function row(step, number, task, changed) {
 
 registry.add("panel", {
   id: "steps",
-  order: 20,
+  order: 30,
   when: (task) => Array.isArray(task?.steps),
-  title: () => t("steps.title", "任务步骤"),
+  title: () => t("steps.title", "步骤与我们的方案"),
   // The head of the panel is also the head of the two columns.
   summary: (task) => {
     const count = t("steps.count", "{n} 步").replace("{n}", task.steps.length);
