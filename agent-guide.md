@@ -39,7 +39,7 @@ Do the setup on `main`.
 
 1. Put the original course materials in `docs/`. Examples: the assignment, the rubric, the syllabus, the feedback of the teaching assistant. Do not edit them. If some materials are not in the repo, ask the leader for them.
 2. Run `init`. It creates `cognition-data/` and adds one line to `AGENTS.md`, so that each member's agent finds this guide.
-3. Read all of `docs/`. Then write the record (see "The record"). The project, the task and the steps come only from the course materials and from what the leader tells you.
+3. Read all of `docs/`. Then write the record (see "The record"). The project, the task and the steps come only from the course materials, from what the leader tells you, and from the official descriptions of the public datasets, methods and papers that the materials name (see "Describe the task").
 4. Draft the framework with the leader: propose an answer for each step, and change it until the leader agrees. A step can stay without an answer.
 5. Read the page as a member who knows nothing about the course (see "Write for the page"). Fix each sentence that this member cannot understand.
 6. Run `check`, then `open`. The setup is done when the leader has read the page and agrees with it.
@@ -152,13 +152,15 @@ All keys except `title` and `goal` are optional. `check` reports a key that it d
 A member must understand the task before the steps make sense. Answer these questions in `task.questions`, in this order. They come from the Heilmeier Catechism, a set of questions for explaining a research project to a person outside the field. Write the question in the user's language as `ask`. Leave out a question that does not apply. You can add a question.
 
 1. What are we trying to do? Say it without special words.
-2. One example from start to end. Show one real case: what goes in, what happens, what comes out. For a prediction task, show one input and its output. For a talk or an argument, show the scene or the case that the talk starts from.
+2. One example from start to end. Show one real case: what goes in, what happens, what comes out. For a prediction task, show one input and its output, with real sizes and values. For a talk or an argument, show the scene or the case that the talk starts from.
 3. Why does it matter? What do people do today, and what is missing?
 4. What do we work with? The data, the material or the tools: where they come from, how large they are, what one item looks like.
 5. How do we know that it worked? What we measure, and what we compare with.
 6. What is hard, and what can go wrong?
 
 Then put in `task.terms` each word that the answers or the steps use and that a member may not know: the names of datasets, methods, measures and course rules, and all abbreviations.
+
+The course materials often only name a public dataset, method or paper. A member cannot understand the task from a name. Read the official description (the page of the dataset, the paper, the documentation of the tool) and give the facts that a member needs: what one item is, how large it is, which classes or parts it has, how it was made. Put that source in `from`. Do not write these facts from memory. If you cannot read the source, say which facts are missing.
 
 ## Write for the page
 
