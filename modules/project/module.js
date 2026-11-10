@@ -25,7 +25,7 @@ function deliverable(item, byId) {
       "div",
       { class: "proj-value" },
       h("div", null, rich(item.what)),
-      uses.length > 0 && h("div", { class: "dim" }, t("project.uses", "接着做："), uses.join("、")),
+      uses.length > 0 && h("div", { class: "dim" }, t("project.uses", "基于："), uses.join("、")),
       item.note && h("div", { class: "dim" }, rich(item.note)),
       item.from && h("div", { class: "from" }, t("core.sources", "来源："), item.from),
     ),

@@ -135,7 +135,7 @@ The page shows the parts in this order: the title and the goal, the project, the
 | `sources` | The source files. |
 | `project.summary` | One line that a member must not miss: the next date, the deliverables, the weight. |
 | `project.about` | What this course project is, in a short paragraph. |
-| `project.deliverables` | Everything that the group hands in or presents, in time order. `what` says what it is and what it contains. `due` is the date. `done` is `true` when it is handed in. `uses` names the earlier deliverables whose work it uses. `note` and `from` are optional. |
+| `project.deliverables` | Everything that the group hands in or presents, in time order. `what` says what it is and what it contains. `due` is the date. `done` is `true` when it is handed in. `uses` names the earlier deliverables whose work it uses; the page shows them as "基于：". `note` and `from` are optional. |
 | `project.items` | Other requirements: the grading, the team, the rules, the form. |
 | `task.summary` | One sentence: what the work does. The closed panel shows it. |
 | `task.questions` | The questions that explain the task, and their answers (see "Describe the task"). `detail` and `from` are optional. |
