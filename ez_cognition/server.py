@@ -1,9 +1,15 @@
-"""The local server of the page.
+"""The one local server of the page.
 
-It serves the core, the modules and the themes as static files, the task
-records as JSON, and the personal state. It tells the open pages when a task
-record changes. It stops by itself when no page has been open for a while:
-nothing stays resident.
+All projects on a computer share this server, its port and its page. The
+projects come from the list in ~/.ez-cognition/projects.json, which `open`
+writes. The server serves the core, the modules and the themes as static
+files, the task records as JSON, and the personal state. It tells the open
+pages when a task record or the list changes. It stops by itself when no
+page has been open for a while: nothing stays resident.
+
+An agent can be on the other side of WSL, where it cannot reach this port.
+So the server also writes its state to ~/.ez-cognition/server.json every
+few seconds, and it reads a stop request from ~/.ez-cognition/stop.
 """
 
 from __future__ import annotations
@@ -22,9 +28,11 @@ from urllib.parse import parse_qs, urlparse
 
 from . import __version__
 from .check import check_task, module_dirs
+from .home import Home, key, side, to_shared, distro
 from .paths import ID_RE, PLUGIN, Paths, load_json, read_json, write_json
 
 APP = "ez-cognition"
+API = 2  # 2: one server for all projects
 HOSTS = ("127.0.0.1", "localhost")
 MIME = {
     ".html": "text/html; charset=utf-8",
@@ -37,19 +45,25 @@ MIME = {
 STATIC = ("core", "modules", "themes", "locales")
 MAX_BODY = 256 * 1024
 IDLE_SECONDS = 60
-USER_DEFAULTS = {"name": "", "theme": "amber", "motion": True, "language": "zh"}
+# The same port on every computer, so that people and agents know where the
+# page is. The system can refuse it; then the server takes one of the next.
+DEFAULT_PORT = 27180
+BEAT = 3.0    # seconds between two writes of server.json
+FRESH = 15.0  # a server.json older than this belongs to a server that stopped
+LOOK_DEFAULTS = {"theme": "auto", "motion": True, "language": "zh"}
 LANGUAGE_RE = re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$")
+SCHEME_RE = re.compile(r"color-scheme:\s*(dark|light)")
 
 
-def default_port(root: Path) -> int:
-    """A port that stays the same for a project, so an open page finds the server again."""
-    return 20000 + zlib.crc32(str(Path(root).resolve()).lower().encode("utf-8")) % 20000
+# ---------- finding the server ----------
+
+_direct = urllib.request.build_opener(urllib.request.ProxyHandler({}))  # never send 127.0.0.1 to a proxy
 
 
 def ping(port: int, timeout: float = 0.6) -> Optional[Dict[str, Any]]:
     """The answer of an ez-cognition server on this port, or None."""
     try:
-        with urllib.request.urlopen("http://127.0.0.1:%d/api/ping" % port, timeout=timeout) as reply:
+        with _direct.open("http://127.0.0.1:%d/api/ping" % port, timeout=timeout) as reply:
             info = json.loads(reply.read().decode("utf-8"))
     except Exception:
         return None
@@ -59,13 +73,41 @@ def ping(port: int, timeout: float = 0.6) -> Optional[Dict[str, Any]]:
     return None
 
 
-def same_root(a, b) -> bool:
-    return os.path.normcase(str(Path(a).resolve())) == os.path.normcase(str(Path(b).resolve()))
+def running(home: Home) -> Optional[Dict[str, Any]]:
+    """The running server, or None. `reach` is False when this side cannot connect to it."""
+    record = read_json(home.server)
+    if not isinstance(record, dict) or not isinstance(record.get("port"), int):
+        return None
+    info = ping(record["port"])
+    if info and info.get("api") == API and key(info.get("home", "")) == home_key(home):
+        info["reach"] = True
+        return info
+    beat = record.get("beat")
+    if record.get("side") != side() and isinstance(beat, (int, float)) and abs(time.time() - beat) < FRESH:
+        out = dict(record)
+        out["reach"] = False
+        return out
+    return None
 
 
-def themes() -> List[str]:
+def home_key(home: Home) -> str:
+    """The same for one home folder, seen from Windows or from WSL."""
+    return key(to_shared(str(home.dir), side(), distro()))
+
+
+# ---------- what the page can show ----------
+
+def themes() -> List[Dict[str, str]]:
+    """The theme files, and whether each one is dark or light."""
     base = PLUGIN / "themes"
-    return sorted(p.stem for p in base.glob("*.css")) if base.is_dir() else []
+    out = []
+    for file in sorted(base.glob("*.css")) if base.is_dir() else []:
+        try:
+            found = SCHEME_RE.search(file.read_text(encoding="utf-8"))
+        except OSError:
+            continue
+        out.append({"name": file.stem, "scheme": found.group(1) if found else "dark"})
+    return out
 
 
 def locales() -> List[str]:
@@ -73,29 +115,48 @@ def locales() -> List[str]:
     return sorted(p.stem for p in base.glob("*.json")) if base.is_dir() else []
 
 
-def clean_user(raw: Any, old: Any) -> Dict[str, Any]:
-    """Merge the settings from the page into the stored ones. Keep only valid values."""
-    user = dict(old) if isinstance(old, dict) else {}
-    if not isinstance(raw, dict):
-        return user
-    name = raw.get("name")
+def clean_name(raw: Any, old: Any) -> Dict[str, Any]:
+    """The name of the user in one project. Branch names use it."""
+    user = {k: v for k, v in old.items() if k == "name"} if isinstance(old, dict) else {}
+    name = raw.get("name") if isinstance(raw, dict) else None
     if isinstance(name, str) and (name == "" or ID_RE.match(name)):
         user["name"] = name
-    if raw.get("theme") in themes():
-        user["theme"] = raw["theme"]
+    return user
+
+
+def clean_look(raw: Any, old: Any) -> Dict[str, Any]:
+    """The look of the page. It is the same in all projects."""
+    look = {k: v for k, v in old.items() if k in LOOK_DEFAULTS} if isinstance(old, dict) else {}
+    if not isinstance(raw, dict):
+        return look
+    if raw.get("theme") == "auto" or raw.get("theme") in [t["name"] for t in themes()]:
+        look["theme"] = raw["theme"]
     if isinstance(raw.get("motion"), bool):
-        user["motion"] = raw["motion"]
+        look["motion"] = raw["motion"]
     language = raw.get("language")
     if isinstance(language, str) and LANGUAGE_RE.match(language):
-        user["language"] = language
-    return user
+        look["language"] = language
+    return look
+
+
+def slug(text: str) -> str:
+    out = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:30].strip("-")
+    return out or "project"
+
+
+class Project:
+    def __init__(self, pid: str, root: Path) -> None:
+        self.id = pid
+        self.paths = Paths(root)
+        self.name = self.paths.root.name
+        self.shared = to_shared(str(self.paths.root), side(), distro())
 
 
 class App:
     """The state that the request threads share."""
 
-    def __init__(self, paths: Paths, idle_seconds: float = IDLE_SECONDS, tick: float = 1.0) -> None:
-        self.paths = paths
+    def __init__(self, home: Home, idle_seconds: float = IDLE_SECONDS, tick: float = 1.0) -> None:
+        self.home = home
         self.idle_seconds = idle_seconds
         self.tick = tick
         self.heartbeat = 5.0  # seconds between two lines to a page; a closed page is found then
@@ -103,48 +164,84 @@ class App:
         self.pages = 0
         self.closing = False
         self.left = 0  # the pages that were open when the server stopped
+        self.record: Optional[Dict[str, Any]] = None  # what serve() writes to server.json
         self.changed = threading.Condition()
+        self.first = self.stamp()  # taken now, so a change before watch() starts is not lost
+
+    # ---------- projects ----------
+
+    def projects(self) -> List[Project]:
+        roots = self.home.roots()
+        names = [slug(root.name) for root in roots]
+        out = []
+        for root, name in zip(roots, names):
+            if names.count(name) > 1:
+                code = "%04x" % (zlib.crc32(key(to_shared(str(root), side(), distro())).encode("utf-8")) & 0xFFFF)
+                name = "%s-%s" % (name[:25], code)
+            out.append(Project(name, root))
+        return out
+
+    def project(self, pid: Any) -> Optional[Project]:
+        for project in self.projects():
+            if project.id == pid:
+                return project
+        return None
 
     def stamp(self) -> List[Any]:
-        """A value that changes when a task record changes."""
-        out = []
-        for file in self.paths.task_files():
+        """A value that changes when the list of projects or a task record changes."""
+        out: List[Any] = []
+        for file in [self.home.projects] + [f for p in self.projects() for f in p.paths.task_files()]:
             try:
                 stat = file.stat()
             except OSError:
                 continue
-            out.append((file.name, stat.st_mtime_ns, stat.st_size))
+            out.append((str(file), stat.st_mtime_ns, stat.st_size))
         return out
 
-    def user(self) -> Dict[str, Any]:
-        stored = read_json(self.paths.user)
-        user = dict(USER_DEFAULTS)
-        if isinstance(stored, dict):
-            user.update(clean_user(stored, {}))
-        if user["theme"] not in themes():
-            user["theme"] = USER_DEFAULTS["theme"]
+    # ---------- answers ----------
+
+    def look(self) -> Dict[str, Any]:
+        look = dict(LOOK_DEFAULTS)
+        look.update(clean_look(read_json(self.home.user), {}))
+        return look
+
+    def user(self, project: Optional[Project]) -> Dict[str, Any]:
+        user = self.look()
+        stored = read_json(project.paths.user) if project else None
+        user["name"] = clean_name(stored, {}).get("name", "")
         return user
 
     def manifest(self) -> Dict[str, Any]:
-        tasks = []
-        for file in self.paths.task_files():
-            if not ID_RE.match(file.stem):
-                continue
-            task = read_json(file)
-            title = task.get("title") if isinstance(task, dict) else None
-            tasks.append({"id": file.stem, "title": title if isinstance(title, str) and title.strip() else file.stem})
+        projects = []
+        for project in self.projects():
+            tasks = []
+            for file in project.paths.task_files():
+                if not ID_RE.match(file.stem):
+                    continue
+                task = read_json(file)
+                title = task.get("title") if isinstance(task, dict) else None
+                tasks.append({"id": file.stem, "title": title if isinstance(title, str) and title.strip() else file.stem})
+            projects.append({"id": project.id, "name": project.name, "tasks": tasks})
+        focus = None
+        asked = self.home.registry().get("focus") or {}
+        for project in self.projects():
+            if isinstance(asked.get("project"), str) and key(asked["project"]) == key(project.shared):
+                focus = {"project": project.id, "at": asked.get("at", 0)}
         return {
             "app": APP,
             "version": __version__,
-            "project": self.paths.root.name,
-            "tasks": tasks,
+            "projects": projects,
+            "focus": focus,
             "modules": [{"name": d.name, "css": (d / "module.css").is_file()} for d in module_dirs()],
             "themes": themes(),
             "locales": locales(),
         }
 
-    def task(self, task_id: str) -> Dict[str, Any]:
-        file = self.paths.task_file(task_id)
+    def task(self, pid: str, task_id: str) -> Dict[str, Any]:
+        project = self.project(pid)
+        if project is None:
+            return {"ok": False, "error": "no project with this id"}
+        file = project.paths.task_file(task_id)
         if file is None:
             return {"ok": False, "error": "no task record with this id"}
         try:
@@ -153,6 +250,30 @@ class App:
             return {"ok": False, "error": "%s: %s" % (file.name, err)}
         return {"ok": isinstance(task, dict), "task": task, "problems": check_task(task), "file": file.name}
 
+    # ---------- life ----------
+
+    def write_record(self) -> None:
+        if self.record is None:
+            return
+        self.record.update(pages=self.pages, beat=time.time())
+        try:
+            write_json(self.home.server, self.record)
+        except OSError:
+            pass
+
+    def asked_to_stop(self) -> bool:
+        try:
+            target = self.home.stop.read_text(encoding="utf-8").strip()
+        except OSError:
+            return False
+        if target not in ("", str(os.getpid())):
+            return False
+        try:
+            self.home.stop.unlink()
+        except OSError:
+            pass
+        return True
+
     def watch(self, httpd: ThreadingHTTPServer) -> None:
         """Tell the pages about changes. Stop the server when no page is open.
 
@@ -160,16 +281,23 @@ class App:
         computer sleeps, the count stops too, so an open page has time to
         connect again after the computer wakes.
         """
-        last = self.stamp()
+        last = self.first
         idle = 0.0
+        beat_at = time.time()
+        pages = self.pages
         while not self.closing:
             time.sleep(self.tick)
+            if self.asked_to_stop():
+                break
             now = self.stamp()
             if now != last:
                 last = now
                 with self.changed:
                     self.version += 1
                     self.changed.notify_all()
+            if self.pages != pages or time.time() - beat_at >= BEAT:
+                pages, beat_at = self.pages, time.time()
+                self.write_record()
             idle = idle + self.tick if self.pages == 0 else 0.0
             if idle >= self.idle_seconds:
                 break
@@ -222,19 +350,22 @@ class Handler(BaseHTTPRequestHandler):
         if not self._local():
             return self._no(403, "only local requests")
         url = urlparse(self.path)
+        query = parse_qs(url.query)
         path = url.path
         if path == "/":
             return self._static("core/index.html")
         if path == "/api/ping":
-            return self._json({"app": APP, "version": __version__, "root": str(self.app.paths.root),
-                               "pid": os.getpid(), "pages": self.app.pages})
+            return self._json({"app": APP, "api": API, "version": __version__, "pid": os.getpid(),
+                               "pages": self.app.pages, "side": side(), "plugin": str(PLUGIN),
+                               "home": to_shared(str(self.app.home.dir), side(), distro())})
         if path == "/api/manifest":
             return self._json(self.app.manifest())
         if path == "/api/task":
-            return self._json(self.app.task((parse_qs(url.query).get("id") or [""])[0]))
+            return self._json(self.app.task((query.get("project") or [""])[0], (query.get("id") or [""])[0]))
         if path == "/api/state":
-            view = read_json(self.app.paths.view)
-            return self._json({"user": self.app.user(), "view": view if isinstance(view, dict) else {}})
+            project = self.app.project((query.get("project") or [""])[0])
+            view = read_json(project.paths.view) if project else None
+            return self._json({"user": self.app.user(project), "view": view if isinstance(view, dict) else {}})
         if path == "/api/events":
             return self._events()
         return self._static(path.lstrip("/"))
@@ -310,14 +441,17 @@ class Handler(BaseHTTPRequestHandler):
     def _save_state(self, body: Any) -> None:
         if not isinstance(body, dict):
             return self._no(400, "the body must be an object")
-        paths = self.app.paths
+        project = self.app.project(body.get("project"))
+        if "view" in body and (project is None or not isinstance(body["view"], dict)):
+            return self._no(400, "view needs a project, and it must be an object")
         if "user" in body:
-            write_json(paths.user, clean_user(body["user"], read_json(paths.user)))
+            home = self.app.home
+            write_json(home.user, clean_look(body["user"], read_json(home.user)))
+            if project and isinstance(body["user"], dict) and "name" in body["user"]:
+                write_json(project.paths.user, clean_name(body["user"], read_json(project.paths.user)))
         if "view" in body:
-            if not isinstance(body["view"], dict):
-                return self._no(400, "view must be an object")
-            write_json(paths.view, body["view"])
-        self._json({"ok": True, "user": self.app.user()})
+            write_json(project.paths.view, body["view"])
+        self._json({"ok": True, "user": self.app.user(project)})
 
 
 class Server(ThreadingHTTPServer):
@@ -326,13 +460,15 @@ class Server(ThreadingHTTPServer):
     allow_reuse_address = os.name != "nt"
 
 
-def bind(paths: Paths, port: Optional[int] = None) -> Optional[Server]:
-    """A server on a free port near the project's port. None: one already runs for this project.
+def bind(port: Optional[int] = None, home: Optional[Home] = None) -> Optional[Server]:
+    """A server on the default port or one of the next. None: the server of this home runs.
+
+    A server of another home (a test, another user) keeps its port; this one takes the next.
 
     The system can refuse a whole range of ports (Windows reserves ranges for
     Hyper-V and WSL). The last candidate is 0: a port that the system chooses.
     """
-    first = default_port(paths.root) if port is None else port
+    first = DEFAULT_PORT if port is None else port
     last_error: Optional[OSError] = None
     for candidate in ([0] if port == 0 else [*range(first, first + 20), 0]):
         try:
@@ -340,21 +476,30 @@ def bind(paths: Paths, port: Optional[int] = None) -> Optional[Server]:
         except OSError as err:
             last_error = err
             other = ping(candidate)
-            if other and same_root(other.get("root", ""), paths.root):
+            if other and other.get("api") == API and (home is None or key(other.get("home", "")) == home_key(home)):
                 return None
     raise OSError("no free port near %d: %s" % (first, last_error))
 
 
-def serve(paths: Paths, idle_seconds: float = IDLE_SECONDS, port: Optional[int] = None) -> int:
+def serve(home: Home, idle_seconds: float = IDLE_SECONDS, port: Optional[int] = None) -> int:
     """Run the server until no page has been open for `idle_seconds`."""
-    httpd = bind(paths, port)
+    other = running(home)
+    if other:
+        print("a server runs already: http://127.0.0.1:%d/ (%s)" % (other["port"], other.get("side")), flush=True)
+        return 0
+    httpd = bind(port, home)
     if httpd is None:
         return 0
-    app = App(paths, idle_seconds)
+    app = App(home, idle_seconds)
     httpd.app = app  # type: ignore[attr-defined]
-    me = {"port": httpd.server_address[1], "pid": os.getpid(), "root": str(paths.root)}
-    write_json(paths.server, me)
-    print("http://127.0.0.1:%d/ for %s" % (me["port"], paths.root), flush=True)
+    app.record = {"app": APP, "api": API, "version": __version__, "port": httpd.server_address[1],
+                  "pid": os.getpid(), "side": side(), "plugin": str(PLUGIN)}
+    try:
+        home.stop.unlink()  # an old request is not for this server
+    except OSError:
+        pass
+    app.write_record()
+    print("http://127.0.0.1:%d/ (%s, ez-cognition %s)" % (app.record["port"], side(), __version__), flush=True)
     threading.Thread(target=app.watch, args=(httpd,), daemon=True).start()
     try:
         httpd.serve_forever(poll_interval=0.2)
@@ -364,11 +509,15 @@ def serve(paths: Paths, idle_seconds: float = IDLE_SECONDS, port: Optional[int] 
         app.close()
         httpd.server_close()
         # A page that was open tries to connect again. The record stays for
-        # it, so the next `open` does not make a second tab.
-        record = read_json(paths.server)
-        if app.left == 0 and isinstance(record, dict) and record.get("pid") == os.getpid():
+        # it (with an old beat), so the next `open` does not make a second tab.
+        record = read_json(home.server)
+        if isinstance(record, dict) and record.get("pid") == os.getpid():
             try:
-                paths.server.unlink()
+                if app.left == 0:
+                    home.server.unlink()
+                else:
+                    record["beat"] = 0
+                    write_json(home.server, record)
             except OSError:
                 pass
     return 0

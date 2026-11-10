@@ -42,3 +42,11 @@ def project(tasks=None):
         text = value if isinstance(value, str) else json.dumps(value, ensure_ascii=False, indent=2)
         (paths.data / (name + ".json")).write_text(text, encoding="utf-8", newline="\n")
     return folder, paths
+
+
+def home():
+    """A temporary ~/.ez-cognition. Returns (TemporaryDirectory, Home)."""
+    from ez_cognition.home import Home
+
+    folder = tempfile.TemporaryDirectory()
+    return folder, Home(Path(folder.name) / ".ez-cognition")

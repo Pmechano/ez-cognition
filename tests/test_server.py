@@ -1,23 +1,38 @@
 import http.client
 import json
+import os
 import socket
+import tempfile
 import threading
 import time
 import unittest
+from pathlib import Path
 from unittest import mock
 
-from ez_cognition.paths import read_json
-from ez_cognition import server
-from ez_cognition.server import App, Server, bind, clean_user, default_port, ping, same_root
+from ez_cognition import launch, server
+from ez_cognition.home import side
+from ez_cognition.paths import Paths, read_json, write_json, write_text
+from ez_cognition.server import (API, APP, App, Server, bind, clean_look, clean_name, ping, running, slug)
 
-from .helpers import project, task
+from .helpers import home, project, task
 
 
 class ServerCase(unittest.TestCase):
-    def start(self, idle=60.0, tasks=None):
-        folder, paths = project(tasks)
-        httpd = bind(paths, port=0)
-        app = App(paths, idle_seconds=idle, tick=0.05)
+    def start(self, idle=60.0, tasks=None, more=0):
+        """A server with one project (and `more` projects without tasks) in a temporary home."""
+        folder, self.home = home()
+        self.addCleanup(folder.cleanup)
+        folder, self.paths = project(tasks)
+        self.addCleanup(folder.cleanup)
+        self.others = []
+        for _ in range(more):
+            folder, other = project({})
+            self.addCleanup(folder.cleanup)
+            self.home.add(other.root, focus=False)
+            self.others.append(other)
+        self.home.add(self.paths.root)
+        httpd = bind(port=0)
+        app = App(self.home, idle_seconds=idle, tick=0.05)
         app.heartbeat = 0.1
         httpd.app = app
         watcher = threading.Thread(target=app.watch, args=(httpd,), daemon=True)
@@ -30,11 +45,11 @@ class ServerCase(unittest.TestCase):
             watcher.join(5)
             runner.join(5)
             httpd.server_close()
-            folder.cleanup()
 
         self.addCleanup(stop)
-        self.paths, self.app, self.runner = paths, app, runner
+        self.app, self.runner = app, runner
         self.port = httpd.server_address[1]
+        self.pid = slug(self.paths.root.name)
 
     def request(self, method, path, body=None, headers=None):
         link = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
@@ -86,9 +101,7 @@ class ReadTest(ServerCase):
     def test_ping(self):
         self.start()
         info = ping(self.port)
-        self.assertEqual(info["app"], "ez-cognition")
-        self.assertTrue(same_root(info["root"], self.paths.root))
-        self.assertEqual(info["pages"], 0)
+        self.assertEqual((info["app"], info["api"], info["pages"], info["side"]), (APP, API, 0, side()))
 
     def test_page_and_static_files(self):
         self.start()
@@ -97,6 +110,7 @@ class ReadTest(ServerCase):
         self.assertIn(b"/core/core.js", page)
         self.assertEqual(self.get("/core/core.js")[0], 200)
         self.assertEqual(self.get("/themes/amber.css")[0], 200)
+        self.assertEqual(self.get("/themes/paper.css")[0], 200)
         self.assertEqual(self.get("/modules/steps/module.js")[0], 200)
 
     def test_only_the_page_files_are_served(self):
@@ -106,24 +120,41 @@ class ReadTest(ServerCase):
             self.assertEqual(self.get(path)[0], 404, path)
 
     def test_manifest(self):
-        self.start()
+        self.start(more=1)
         code, manifest = self.get("/api/manifest")
         self.assertEqual(code, 200)
-        self.assertEqual(manifest["tasks"], [{"id": "talk", "title": "Talk"}])
+        mine = [p for p in manifest["projects"] if p["id"] == self.pid]
+        self.assertEqual(mine, [{"id": self.pid, "name": self.paths.root.name, "tasks": [{"id": "talk", "title": "Talk"}]}])
+        self.assertEqual(len(manifest["projects"]), 2)
+        self.assertEqual(manifest["focus"]["project"], self.pid)
         self.assertIn({"name": "steps", "css": True}, manifest["modules"])
-        self.assertIn("amber", manifest["themes"])
+        self.assertIn({"name": "amber", "scheme": "dark"}, manifest["themes"])
+        self.assertIn({"name": "paper", "scheme": "light"}, manifest["themes"])
+
+    def test_two_projects_with_one_name(self):
+        self.start()
+        with tempfile.TemporaryDirectory() as a, tempfile.TemporaryDirectory() as b:
+            for base in (a, b):
+                (Path(base) / "course" / "cognition-data").mkdir(parents=True)
+                self.home.add(Path(base) / "course", focus=False)
+            ids = [p["id"] for p in self.get("/api/manifest")[1]["projects"]]
+            self.assertEqual(len(ids), 3)
+            self.assertEqual(len(set(ids)), 3)
+            self.assertTrue(all(i.startswith("course-") for i in ids if i != self.pid))
 
     def test_task(self):
         record = task()
         record["stages"] = []
         self.start(tasks={"talk": task(), "bad": record, "broken": "{"})
-        code, reply = self.get("/api/task?id=talk")
+        code, reply = self.get("/api/task?project=%s&id=talk" % self.pid)
         self.assertEqual((code, reply["ok"], reply["problems"]), (200, True, []))
         self.assertEqual(reply["task"]["title"], "Talk")
-        self.assertEqual(self.get("/api/task?id=bad")[1]["problems"], ["stages: no installed module uses this key"])
-        self.assertFalse(self.get("/api/task?id=broken")[1]["ok"])
-        self.assertFalse(self.get("/api/task?id=none")[1]["ok"])
-        self.assertFalse(self.get("/api/task?id=../talk")[1]["ok"])
+        bad = self.get("/api/task?project=%s&id=bad" % self.pid)[1]
+        self.assertEqual(bad["problems"], ["stages: no installed module uses this key"])
+        self.assertFalse(self.get("/api/task?project=%s&id=broken" % self.pid)[1]["ok"])
+        self.assertFalse(self.get("/api/task?project=%s&id=none" % self.pid)[1]["ok"])
+        self.assertFalse(self.get("/api/task?project=%s&id=../talk" % self.pid)[1]["ok"])
+        self.assertFalse(self.get("/api/task?project=none&id=talk")[1]["ok"])
 
     def test_another_host_is_refused(self):
         self.start()
@@ -134,66 +165,88 @@ class ReadTest(ServerCase):
 class StateTest(ServerCase):
     def test_defaults(self):
         self.start()
-        code, state = self.get("/api/state")
+        code, state = self.get("/api/state?project=%s" % self.pid)
         self.assertEqual(code, 200)
-        self.assertEqual(state, {"user": {"name": "", "theme": "amber", "motion": True, "language": "zh"}, "view": {}})
+        self.assertEqual(state, {"user": {"name": "", "theme": "auto", "motion": True, "language": "zh"}, "view": {}})
+        self.assertEqual(self.get("/api/state")[1]["user"]["name"], "")
 
     def test_write_needs_the_header(self):
         self.start()
-        self.assertEqual(self.post("/api/state", {"user": {"name": "blank"}}, key=False)[0], 403)
+        self.assertEqual(self.post("/api/state", {"project": self.pid, "user": {"name": "blank"}}, key=False)[0], 403)
         self.assertFalse(self.paths.user.exists())
         self.assertEqual(self.post("/api/stop", {}, key=False)[0], 403)
 
     def test_write(self):
         self.start()
         view = {"talk": {"open": {"step:risk": True}, "seen": {"risk": "abc"}}}
-        code, reply = self.post("/api/state", {"user": {"name": "blank", "motion": False}, "view": view})
-        self.assertEqual(code, 200)
-        self.assertEqual(reply["user"]["name"], "blank")
-        state = self.get("/api/state")[1]
+        body = {"project": self.pid, "user": {"name": "blank", "theme": "paper", "motion": False}, "view": view}
+        code, reply = self.post("/api/state", body)
+        self.assertEqual((code, reply["user"]["name"], reply["user"]["theme"]), (200, "blank", "paper"))
+        state = self.get("/api/state?project=%s" % self.pid)[1]
         self.assertEqual(state["user"]["motion"], False)
         self.assertEqual(state["view"], view)
+        self.assertEqual(read_json(self.paths.user), {"name": "blank"})
+        self.assertEqual(read_json(self.home.user), {"theme": "paper", "motion": False})
         self.assertNotIn(b"\r", self.paths.view.read_bytes())
+
+    def test_the_name_belongs_to_a_project_and_the_look_to_all(self):
+        self.start(more=1)
+        self.post("/api/state", {"project": self.pid, "user": {"name": "blank", "theme": "paper"}})
+        other = slug(self.others[0].root.name)
+        user = self.get("/api/state?project=%s" % other)[1]["user"]
+        self.assertEqual((user["name"], user["theme"]), ("", "paper"))
 
     def test_bad_values_are_not_stored(self):
         self.start()
-        self.post("/api/state", {"user": {"name": "blank"}})
-        self.post("/api/state", {"user": {"name": "../x", "theme": "none", "motion": "yes", "extra": 1}})
+        self.post("/api/state", {"project": self.pid, "user": {"name": "blank"}})
+        self.post("/api/state", {"project": self.pid, "user": {"name": "../x", "theme": "none", "motion": "yes", "extra": 1}})
         self.assertEqual(read_json(self.paths.user), {"name": "blank"})
-        self.assertEqual(self.post("/api/state", {"view": []})[0], 400)
+        self.assertEqual(read_json(self.home.user), {})
+        self.assertEqual(self.post("/api/state", {"project": self.pid, "view": []})[0], 400)
+        self.assertEqual(self.post("/api/state", {"view": {}})[0], 400)
         self.assertEqual(self.post("/api/none", {})[0], 404)
 
-    def test_clean_user(self):
-        self.assertEqual(clean_user({"name": ""}, {"name": "blank"}), {"name": ""})
-        self.assertEqual(clean_user("x", {"name": "blank"}), {"name": "blank"})
-        self.assertEqual(clean_user({"language": "en"}, None), {"language": "en"})
+    def test_clean(self):
+        self.assertEqual(clean_name({"name": ""}, {"name": "blank"}), {"name": ""})
+        self.assertEqual(clean_name("x", {"name": "blank", "theme": "amber"}), {"name": "blank"})
+        self.assertEqual(clean_look({"language": "en", "theme": "auto"}, None), {"language": "en", "theme": "auto"})
+        self.assertEqual(clean_look({"theme": "none"}, {"theme": "amber", "name": "x"}), {"theme": "amber"})
 
 
 class LifeTest(ServerCase):
-    def test_port_is_stable(self):
-        self.start()
-        port = default_port(self.paths.root)
-        self.assertEqual(port, default_port(str(self.paths.root)))
-        self.assertTrue(20000 <= port < 40000)
-
     def test_bind_when_the_system_refuses_the_ports(self):
-        folder, paths = project()
-        self.addCleanup(folder.cleanup)
-
         def picky(address, handler):
             if address[1] != 0:
                 raise OSError("refused")
             return Server(address, handler)
 
         with mock.patch.object(server, "Server", picky), mock.patch.object(server, "ping", return_value=None):
-            httpd = bind(paths)
+            httpd = bind()
         self.addCleanup(httpd.server_close)
         self.assertGreater(httpd.server_address[1], 0)
 
-    def test_bind_when_this_project_has_a_server(self):
+    def test_bind_when_a_server_runs(self):
         self.start()
-        with mock.patch.object(server, "default_port", return_value=self.port):
-            self.assertIsNone(bind(self.paths))
+        with mock.patch.object(server, "DEFAULT_PORT", self.port):
+            self.assertIsNone(bind())
+
+    def test_bind_passes_the_server_of_another_home(self):
+        self.start()
+        folder, other = home()
+        self.addCleanup(folder.cleanup)
+        with mock.patch.object(server, "DEFAULT_PORT", self.port):
+            self.assertIsNone(bind(home=self.home))
+            httpd = bind(home=other)
+        self.addCleanup(httpd.server_close)
+        self.assertNotEqual(httpd.server_address[1], self.port)
+
+    def test_bind_passes_a_server_of_version_one(self):
+        self.start()
+        with mock.patch.object(server, "DEFAULT_PORT", self.port), \
+                mock.patch.object(server, "ping", return_value={"app": APP, "root": "x"}):
+            httpd = bind()
+        self.addCleanup(httpd.server_close)
+        self.assertNotEqual(httpd.server_address[1], self.port)
 
     def test_a_page_is_told_about_a_change(self):
         self.start()
@@ -203,6 +256,15 @@ class LifeTest(ServerCase):
         record = task()
         record["goal"] = "A new goal."
         (self.paths.data / "talk.json").write_text(json.dumps(record), encoding="utf-8")
+        self.assertIn(b"event: change", self.read_until(link, b"event: change"))
+
+    def test_a_page_is_told_about_a_new_project(self):
+        self.start()
+        link = self.events()
+        self.read_until(link, b"retry: 2000")
+        folder, other = project({})
+        self.addCleanup(folder.cleanup)
+        self.home.add(other.root)
         self.assertIn(b"event: change", self.read_until(link, b"event: change"))
 
     def test_a_closed_page_is_found(self):
@@ -233,6 +295,103 @@ class LifeTest(ServerCase):
         self.assertEqual(self.post("/api/stop", {}), (200, {"ok": True}))
         self.assertTrue(self.wait(lambda: not self.runner.is_alive()))
         self.assertEqual(self.app.left, 1)
+
+    def test_stop_from_the_other_side(self):
+        self.start()
+        write_text(self.home.stop, "%d\n" % (os.getpid() + 1))  # another server
+        time.sleep(0.3)
+        self.assertTrue(self.runner.is_alive())
+        write_text(self.home.stop, "%d\n" % os.getpid())
+        self.assertTrue(self.wait(lambda: not self.runner.is_alive()))
+        self.assertFalse(self.home.stop.exists())
+
+    def test_the_record_beats(self):
+        self.start()
+        self.app.record = {"app": APP, "api": API, "port": self.port, "pid": os.getpid(), "side": side()}
+        self.app.write_record()
+        first = read_json(self.home.server)
+        self.assertEqual(first["pages"], 0)
+        self.events()
+        self.assertTrue(self.wait(lambda: read_json(self.home.server, {}).get("pages") == 1))
+
+
+class RunningTest(ServerCase):
+    def record(self, **fields):
+        value = {"app": APP, "api": API, "version": "9.9.9", "port": 1, "pid": 1, "side": side(), "beat": time.time()}
+        value.update(fields)
+        write_json(self.home.server, value)
+
+    def test_a_server_that_answers(self):
+        self.start()
+        self.record(port=self.port)
+        info = running(self.home)
+        self.assertTrue(info["reach"])
+        self.assertEqual(info["port"], self.port)
+        folder, other = home()
+        self.addCleanup(folder.cleanup)
+        write_json(other.server, read_json(self.home.server))
+        self.assertIsNone(running(other))
+
+    def test_a_server_on_the_other_side(self):
+        folder, self.home = home()
+        self.addCleanup(folder.cleanup)
+        self.record(side="elsewhere")
+        self.assertFalse(running(self.home)["reach"])
+        self.record(side="elsewhere", beat=time.time() - 60)
+        self.assertIsNone(running(self.home))
+
+    def test_a_record_without_a_server(self):
+        folder, self.home = home()
+        self.addCleanup(folder.cleanup)
+        self.assertIsNone(running(self.home))
+        self.record()
+        self.assertIsNone(running(self.home))
+
+
+class OpenTest(unittest.TestCase):
+    def setUp(self):
+        folder, self.home = home()
+        self.addCleanup(folder.cleanup)
+        folder, self.paths = project()
+        self.addCleanup(folder.cleanup)
+        patch = mock.patch.dict(os.environ, {launch.NO_WINDOW: "1"})
+        patch.start()
+        self.addCleanup(patch.stop)
+
+    def test_version_key(self):
+        self.assertLess(launch.version_key("0.2.0"), launch.version_key("0.10.0"))
+        self.assertEqual(launch.version_key("x"), ())
+
+    def test_open_uses_the_running_server(self):
+        info = {"port": 27180, "version": launch.__version__, "side": side(), "pages": 1, "reach": True}
+        with mock.patch.object(launch, "running", return_value=info), mock.patch.object(launch, "start") as start:
+            url, what = launch.open_page(self.paths, self.home)
+        start.assert_not_called()
+        self.assertEqual(url, "http://127.0.0.1:27180/")
+        self.assertIn("already open", what)
+        self.assertEqual(len(self.home.registry()["projects"]), 1)
+
+    def test_open_replaces_an_older_server(self):
+        old = {"port": 27180, "version": "0.1.9", "side": side(), "pages": 0, "reach": True}
+        new = {"port": 27181, "version": launch.__version__, "side": side(), "pages": 0, "reach": True}
+        with mock.patch.object(launch, "running", return_value=old), \
+                mock.patch.object(launch, "stop", return_value=True) as stop, \
+                mock.patch.object(launch, "start", return_value=new):
+            url, what = launch.open_page(self.paths, self.home)
+        stop.assert_called_once()
+        self.assertEqual(url, "http://127.0.0.1:27181/")
+
+    def test_open_tells_where_the_server_runs(self):
+        info = {"port": 27180, "version": launch.__version__, "side": "elsewhere", "pages": 0, "reach": False}
+        with mock.patch.object(launch, "running", return_value=info):
+            url, what = launch.open_page(self.paths, self.home)
+        self.assertIn("elsewhere", what)
+
+    def test_stop_on_the_other_side_writes_the_request(self):
+        info = {"port": 27180, "pid": 42, "reach": False}
+        with mock.patch.object(launch, "running", return_value=None):
+            self.assertTrue(launch.stop(self.home, info, wait=0.5))
+        self.assertEqual(self.home.stop.read_text().strip(), "42")
 
 
 if __name__ == "__main__":

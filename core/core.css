@@ -93,12 +93,17 @@ code::before, code::after { content: "`"; color: var(--dim); }
 
 .brand { letter-spacing: 0.14em; }
 
-.tasks {
+.projects, .tasks {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 0.5ch;
-  margin-left: auto;
+  gap: 0.2rem 0.5ch;
 }
+
+/* The projects are on the top line; the tasks of the open project under it. */
+.projects { margin-left: auto; }
+.projects .tab::before, .projects .tab::after { content: none; }
+
+.tasks { margin-top: 0.55rem; }
 
 button {
   all: unset;

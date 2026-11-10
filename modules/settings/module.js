@@ -1,7 +1,10 @@
-// Panel: the personal settings of the user. The server writes them to
-// cognition-data/.local/user.json, which git ignores.
+// Panel: the personal settings of the user. The name belongs to this
+// project (cognition-data/.local/user.json, which git ignores). The look is
+// the same in all projects (~/.ez-cognition/user.json).
 
 import { registry, h, t, user, saveUser, manifest } from "/core/core.js";
+
+const SCHEME = { dark: "深色", light: "浅色" };
 
 const NAME = /^[a-z0-9][a-z0-9-]{0,29}$/;
 
@@ -42,7 +45,7 @@ registry.add("panel", {
     input.addEventListener("keydown", (event) => {
       if (event.key === "Enter") input.blur();
     });
-    say(t("settings.name.why", "分支名和方向记录用它。小写英文字母、数字和 -"), false);
+    say(t("settings.name.why", "只在这个项目里用：分支名和方向记录用它。小写英文字母、数字和 -"), false);
 
     const rows = [
       h("label", { class: "set-row" }, h("span", { class: "dim" }, t("settings.name", "名字")), h("span", null, input, " ", hint)),
@@ -50,12 +53,16 @@ registry.add("panel", {
 
     const themes = manifest().themes;
     if (themes.length > 1) {
+      const label = (theme) => `${t(`settings.scheme.${theme.scheme}`, SCHEME[theme.scheme] ?? theme.scheme)} · ${theme.name}`;
+      const options = [{ value: "auto", text: t("settings.theme.auto", "跟随系统") }].concat(
+        themes.map((theme) => ({ value: theme.name, text: label(theme) })),
+      );
       const select = h(
         "select",
-        { "aria-label": t("settings.theme", "主题"), onchange: (event) => saveUser({ theme: event.target.value }) },
-        themes.map((name) => h("option", { value: name, selected: name === me.theme }, name)),
+        { "aria-label": t("settings.theme", "外观"), onchange: (event) => saveUser({ theme: event.target.value }) },
+        options.map((o) => h("option", { value: o.value, selected: o.value === me.theme }, o.text)),
       );
-      rows.push(h("label", { class: "set-row" }, h("span", { class: "dim" }, t("settings.theme", "主题")), select));
+      rows.push(h("label", { class: "set-row" }, h("span", { class: "dim" }, t("settings.theme", "外观")), select));
     }
 
     const motion = h(

@@ -5,6 +5,9 @@
 // refresh when a task record changes. Everything that the page shows comes
 // from a module in /modules/. The core must still run with no module.
 //
+// One page shows all the projects on this computer. A project has one or
+// more tasks; the page shows one task at a time.
+//
 // A module is a folder with a module.js that imports this file and registers
 // what it adds:
 //
@@ -79,9 +82,10 @@ export function t(key, zh) {
 // ---------- state ----------
 
 const app = {
-  manifest: { project: "", tasks: [], modules: [], themes: [], locales: [] },
-  user: { name: "", theme: "amber", motion: true, language: "zh" },
+  manifest: { projects: [], focus: null, modules: [], themes: [], locales: [] },
+  user: { name: "", theme: "auto", motion: true, language: "zh" },
   view: {},
+  projectId: null,
   taskId: null,
   task: null,
   problems: [],
@@ -92,26 +96,43 @@ const app = {
 
 export const user = () => ({ ...app.user });
 export const manifest = () => app.manifest;
+export const project = () => app.manifest.projects.find((p) => p.id === app.projectId) ?? null;
+
+// The last `open` that this tab followed. A new tab follows the newest one.
+const FOCUS_KEY = "ezc-focus";
+let focusSeen = 0;
+try {
+  focusSeen = Number(sessionStorage.getItem(FOCUS_KEY) || 0);
+} catch {
+  // No session storage: the tab follows every `open`.
+}
 
 let pending = {};
+let pendingProject = null;
 let timer = null;
 
+async function flush() {
+  clearTimeout(timer);
+  if (!Object.keys(pending).length) return;
+  const body = { ...pending, project: pendingProject };
+  pending = {};
+  try {
+    await fetch("/api/state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-EZC": "1" },
+      body: JSON.stringify(body),
+    });
+  } catch {
+    // The server stopped. The status line tells the user.
+  }
+}
+
 function save(patch) {
+  if (pendingProject !== app.projectId) flush();
+  pendingProject = app.projectId;
   Object.assign(pending, patch);
   clearTimeout(timer);
-  timer = setTimeout(async () => {
-    const body = pending;
-    pending = {};
-    try {
-      await fetch("/api/state", {
-        method: "POST",
-        headers: { "Content-Type": "application/json", "X-EZC": "1" },
-        body: JSON.stringify(body),
-      });
-    } catch {
-      // The server stopped. The status line tells the user.
-    }
-  }, 200);
+  timer = setTimeout(flush, 200);
 }
 
 export function saveUser(patch) {
@@ -172,44 +193,66 @@ export function fold({ key, open = false, cls = "", head, body }) {
   return el;
 }
 
-// ---------- page ----------
+// ---------- look ----------
+
+const light = window.matchMedia("(prefers-color-scheme: light)");
+
+// "auto" follows the system: the first theme of the system's scheme.
+export function themeName() {
+  const list = app.manifest.themes;
+  if (list.some((theme) => theme.name === app.user.theme)) return app.user.theme;
+  const want = light.matches ? "light" : "dark";
+  return (list.find((theme) => theme.scheme === want) ?? list[0])?.name ?? "";
+}
 
 function applyUser() {
   const root = document.documentElement;
   root.dataset.motion = app.user.motion ? "on" : "off";
   root.lang = app.user.language || "zh";
-  const themes = app.manifest.themes;
-  const theme = themes.includes(app.user.theme) ? app.user.theme : themes[0];
+  const theme = themeName();
   const link = document.getElementById("theme");
   const href = theme ? `/themes/${theme}.css` : "";
   if (link && link.getAttribute("href") !== href) link.setAttribute("href", href);
 }
 
-function top() {
-  const tasks = app.manifest.tasks;
+light.addEventListener?.("change", applyUser);
+
+// ---------- page ----------
+
+function tabs(cls, items, current, pick) {
   return h(
-    "header",
-    { class: "top" },
-    h("span", { class: "brand" }, "EZ-COGNITION"),
-    h("span", { class: "dim" }, "// ", app.manifest.project),
-    tasks.length > 1 &&
+    "nav",
+    { class: cls },
+    items.map((item) =>
       h(
-        "nav",
-        { class: "tasks" },
-        tasks.map((task) =>
-          h(
-            "button",
-            {
-              type: "button",
-              class: task.id === app.taskId ? "tab on" : "tab",
-              "aria-current": task.id === app.taskId ? "page" : null,
-              onclick: () => choose(task.id),
-            },
-            task.title,
-          ),
-        ),
+        "button",
+        {
+          type: "button",
+          class: item.id === current ? "tab on" : "tab",
+          "aria-current": item.id === current ? "page" : null,
+          onclick: () => pick(item.id),
+        },
+        item.label,
       ),
+    ),
   );
+}
+
+function top() {
+  const projects = app.manifest.projects;
+  const tasks = project()?.tasks ?? [];
+  return [
+    h(
+      "header",
+      { class: "top" },
+      h("span", { class: "brand" }, "EZ-COGNITION"),
+      projects.length === 1 && h("span", { class: "dim" }, "// ", projects[0].name),
+      projects.length > 1 &&
+        tabs("projects", projects.map((p) => ({ id: p.id, label: p.name })), app.projectId, (id) => choose(id, null)),
+    ),
+    tasks.length > 1 &&
+      tabs("tasks", tasks.map((task) => ({ id: task.id, label: task.title })), app.taskId, (id) => choose(app.projectId, id)),
+  ];
 }
 
 function trouble() {
@@ -256,7 +299,16 @@ function panels() {
 }
 
 function body() {
-  if (!app.manifest.tasks.length) {
+  if (!app.manifest.projects.length) {
+    return h(
+      "main",
+      null,
+      h("h1", null, t("core.noproject", "还没有项目")),
+      h("p", null, t("core.noproject.how", "在一个项目里让你的 agent 运行 open，这个项目就会出现在这里。")),
+      panels(),
+    );
+  }
+  if (!project()?.tasks.length) {
     return h(
       "main",
       null,
@@ -287,8 +339,9 @@ function status() {
 }
 
 function render() {
-  document.title = app.task?.title ? `${app.task.title} · ez-cognition` : "ez-cognition";
-  document.getElementById("app").replaceChildren(top(), body(), status());
+  const name = project()?.name;
+  document.title = [app.task?.title, name, "ez-cognition"].filter(Boolean).join(" · ");
+  document.getElementById("app").replaceChildren(...top(), body(), status());
 }
 
 // ---------- data ----------
@@ -298,21 +351,72 @@ async function getJSON(url) {
   return reply.json();
 }
 
+const asked = () => new URLSearchParams(location.search);
+
+function seeFocus(at) {
+  focusSeen = at;
+  try {
+    sessionStorage.setItem(FOCUS_KEY, String(at));
+  } catch {
+    // See above.
+  }
+}
+
+// The project in the address wins when the tab opens. After that, the page
+// follows each new `open`.
+function pickProject() {
+  const ids = app.manifest.projects.map((p) => p.id);
+  const focus = app.manifest.focus;
+  const fresh = focus && focus.at > focusSeen && ids.includes(focus.project);
+  if (app.projectId === null && ids.includes(asked().get("project"))) {
+    if (fresh) seeFocus(focus.at);
+    return asked().get("project");
+  }
+  if (fresh) {
+    seeFocus(focus.at);
+    return focus.project;
+  }
+  if (ids.includes(app.projectId)) return app.projectId;
+  return ids[0] ?? null;
+}
+
 function pickTask() {
-  const ids = app.manifest.tasks.map((task) => task.id);
-  const asked = new URLSearchParams(location.search).get("task");
-  if (ids.includes(asked)) return asked;
+  const ids = (project()?.tasks ?? []).map((task) => task.id);
+  if (ids.includes(app.taskId)) return app.taskId;
+  if (asked().get("project") === app.projectId && ids.includes(asked().get("task"))) return asked().get("task");
   if (ids.includes(app.view._last)) return app.view._last;
   return ids[0] ?? null;
 }
 
+async function loadState() {
+  const query = app.projectId ? `?project=${encodeURIComponent(app.projectId)}` : "";
+  const stored = await getJSON(`/api/state${query}`);
+  app.user = { ...app.user, ...stored.user };
+  app.view = stored.view ?? {};
+}
+
+function remember() {
+  if (!app.projectId) return;
+  const query = new URLSearchParams({ project: app.projectId });
+  if (app.taskId) query.set("task", app.taskId);
+  history.replaceState(null, "", `?${query}`);
+}
+
 async function load() {
   app.manifest = await getJSON("/api/manifest");
+  const before = app.projectId;
+  app.projectId = pickProject();
+  if (app.projectId !== before) {
+    await flush();
+    app.taskId = null;
+    await loadState();
+  }
   app.taskId = pickTask();
   app.task = null;
   app.problems = [];
   if (app.taskId) {
-    const reply = await getJSON(`/api/task?id=${encodeURIComponent(app.taskId)}`);
+    const query = new URLSearchParams({ project: app.projectId, id: app.taskId });
+    const reply = await getJSON(`/api/task?${query}`);
     if (reply.ok) {
       app.task = reply.task;
       app.problems = reply.problems ?? [];
@@ -321,15 +425,22 @@ async function load() {
     }
   }
   app.updated = new Date();
+  remember();
   applyUser();
   render();
 }
 
-function choose(id) {
-  history.replaceState(null, "", `?task=${encodeURIComponent(id)}`);
-  app.view._last = id;
+async function choose(projectId, taskId) {
+  if (projectId !== app.projectId) {
+    await flush();
+    app.projectId = projectId;
+    await loadState();
+  }
+  app.taskId = taskId;
+  app.taskId = pickTask();
+  app.view._last = app.taskId;
   save({ view: app.view });
-  load();
+  await load();
 }
 
 function listen() {
@@ -350,12 +461,11 @@ function listen() {
 
 async function boot() {
   app.manifest = await getJSON("/api/manifest");
-  const stored = await getJSON("/api/state");
-  app.user = { ...app.user, ...stored.user };
-  app.view = stored.view ?? {};
+  await loadState();
   if (app.user.language !== "zh" && app.manifest.locales.includes(app.user.language)) {
     locale = await getJSON(`/locales/${app.user.language}.json`).catch(() => ({}));
   }
+  applyUser();
   for (const module of app.manifest.modules) {
     if (module.css) {
       document.head.append(h("link", { rel: "stylesheet", href: `/modules/${module.name}/module.css` }));

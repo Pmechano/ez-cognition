@@ -22,10 +22,12 @@ python <plugin>/ezc.py init
 python <plugin>/ezc.py stop
 ```
 
-- `open` starts the local server if it does not run, and shows the page in the user's browser. It prints the URL, the state of each task record, the user's name and the git branch. If the page is already open, it does not open a second one.
+- `open` adds this project to the page, starts the local server if it does not run, and shows the page in the user's browser. It prints the address, the state of each task record, the user's name and the git branch. If the page is already open, the page changes to this project, and `open` does not open a second page.
 - `check` validates the task records. It prints the problems, or `OK`.
 - `init` is for the leader's setup.
-- `stop` stops the server now. Usually you do not need it: the server stops by itself approximately one minute after the user closes the page.
+- `stop` stops the server now, for all projects. Usually you do not need it: the server stops by itself approximately one minute after the user closes the page.
+
+One server and one page show all the projects on the computer. Projects in WSL are included. The address is `http://127.0.0.1:27180/`. If the system refuses this port, the server uses one of the next ports, and `open` prints it. Do not start a server in another way.
 
 The page refreshes by itself when a task record changes. The page never calls a model. When the user has a question about the page, the user asks you.
 
@@ -104,17 +106,17 @@ One file for each task: `cognition-data/<task-id>.json`. The task id is the file
 }
 ```
 
-| Key | Content |
-|---|---|
-| `title` | The name of the task, as the members say it. |
-| `goal` | One sentence: what the group makes and what it must show. |
-| `sources` | The source files. The reader goes there for details. |
-| `logistics.summary` | One line that a member must not miss: the date, the form, the weight. |
-| `logistics.items` | The requirements around the work: the deadline, what to hand in, the form, the grading, the rules. `label` and `value` are short. `note` and `from` are optional. |
-| `steps` | What the task asks, in order. `ask` is one or two sentences. `detail` and `from` are optional. |
-| `answers.<step-id>.answer` | The group's answer to that step, in one or two sentences. |
-| `answers.<step-id>.detail` | Optional key points of the answer. |
-| `answers.<step-id>.directions` | What members explore in that step. `found` is optional. |
+| Key                              | Content                                                                                                                                                                   |
+| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `title`                        | The name of the task, as the members say it.                                                                                                                              |
+| `goal`                         | One sentence: what the group makes and what it must show.                                                                                                                 |
+| `sources`                      | The source files. The reader goes there for details.                                                                                                                      |
+| `logistics.summary`            | One line that a member must not miss: the date, the form, the weight.                                                                                                     |
+| `logistics.items`              | The requirements around the work: the deadline, what to hand in, the form, the grading, the rules. `label` and `value` are short. `note` and `from` are optional. |
+| `steps`                        | What the task asks, in order. `ask` is one or two sentences. `detail` and `from` are optional.                                                                      |
+| `answers.<step-id>.answer`     | The group's answer to that step, in one or two sentences.                                                                                                                 |
+| `answers.<step-id>.detail`     | Optional key points of the answer.                                                                                                                                        |
+| `answers.<step-id>.directions` | What members explore in that step. `found` is optional.                                                                                                                 |
 
 All keys except `title` and `goal` are optional. `check` reports a key that it does not know.
 
@@ -136,6 +138,7 @@ The task record is a transcription and can contain errors. If a question needs t
 
 - Do not change the files of ez-cognition.
 - Do not write in `cognition-data/.local/`. It contains the user's personal state, and git ignores it. The only exception is the file that `collab-guide.md` names.
+- Do not write in `~/.ez-cognition/`. It contains the state of the one server: the list of projects and the look of the page. Only `open` and the page write it.
 - The marks "我已认知" on the page belong to the user. They are voluntary. Do not ask the user to set them, and do not test the user.
 - Do not compare the members, and do not count their work.
 

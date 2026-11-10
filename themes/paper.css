@@ -1,0 +1,19 @@
+/* Theme: amber ink on warm paper. The light partner of amber.css.
+ *
+ * The same rules as the dark theme. One hue. Importance shows as contrast:
+ * dim for notes, plain for text, bright (the darkest ink) for the highlight,
+ * hot for "needs you". The page takes this theme when the user chooses it,
+ * or when the user chooses "auto" and the system is light.
+ */
+:root {
+  color-scheme: light;
+  --bg: #f6f0e2;      /* warm paper */
+  --dim: #86683c;     /* notes, labels, marks */
+  --text: #4f3816;    /* body text: brown ink */
+  --bright: #2a1b05;  /* the highlight: the darkest ink */
+  --hot: #b54708;     /* needs the user */
+  --frame: #a78a5e;   /* the lines around a panel */
+  --rule: #e3d5b8;    /* the lines inside a panel */
+  --font: "Cascadia Mono", "Sarasa Mono SC", Consolas, "SF Mono", Menlo, "DejaVu Sans Mono",
+    "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans Mono CJK SC", "Noto Sans CJK SC", monospace;
+}

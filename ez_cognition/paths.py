@@ -22,8 +22,6 @@ class Paths:
         self.local = self.data / ".local"
         self.user = self.local / "user.json"
         self.view = self.local / "view.json"
-        self.server = self.local / "server.json"
-        self.log = self.local / "server.log"
 
     def task_files(self) -> List[Path]:
         if not self.data.is_dir():

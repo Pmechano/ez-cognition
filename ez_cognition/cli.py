@@ -3,18 +3,17 @@
 from __future__ import annotations
 
 import argparse
-import json
 import subprocess
 import sys
-import urllib.request
 from pathlib import Path
 from typing import Dict, List, Optional
 
 from . import __version__
 from .check import check_project
-from .launch import find_running, open_page
+from .home import Home
+from .launch import open_page, stop
 from .paths import DATA_DIR, PLUGIN, Paths, find_root, read_json, write_text
-from .server import IDLE_SECONDS, serve
+from .server import IDLE_SECONDS, running, serve
 
 ENTRY_MARK = "ez-cognition"
 
@@ -107,20 +106,16 @@ def cmd_init(paths: Paths) -> int:
     return 0
 
 
-def cmd_stop(paths: Paths) -> int:
-    info = find_running(paths)
+def cmd_stop() -> int:
+    home = Home()
+    info = running(home)
     if info is None:
         print("the server does not run")
         return 0
-    request = urllib.request.Request("http://127.0.0.1:%d/api/stop" % info["port"], data=b"{}", method="POST",
-                                     headers={"Content-Type": "application/json", "X-EZC": "1"})
-    try:
-        with urllib.request.urlopen(request, timeout=3) as reply:
-            json.loads(reply.read().decode("utf-8"))
-    except Exception as err:
-        print("could not stop the server: %s" % err)
+    if not stop(home, info):
+        print("could not stop the server. Read %s" % home.log)
         return 1
-    print("stopped")
+    print("stopped. It served all projects; the next `open` starts it again.")
     return 0
 
 
@@ -136,20 +131,20 @@ def main(argv: Optional[List[str]] = None) -> int:
     commands.add_parser("open", help="start the server if it does not run, and show the page")
     commands.add_parser("check", help="validate the task records")
     commands.add_parser("init", help="leader setup: create %s/" % DATA_DIR)
-    commands.add_parser("stop", help="stop the server now")
-    run = commands.add_parser("serve", help="run the server in this terminal")
+    commands.add_parser("stop", help="stop the server now (it serves all projects)")
+    run = commands.add_parser("serve", help="run the server in this terminal (all projects)")
     run.add_argument("--idle", type=float, default=IDLE_SECONDS,
                      help="seconds without an open page before the server stops")
     run.add_argument("--port", type=int, default=None)
     args = parser.parse_args(argv)
 
+    if args.command == "stop":
+        return cmd_stop()
+    if args.command == "serve":
+        return serve(Home(), idle_seconds=args.idle, port=args.port)
     paths = Paths(args.root) if args.root else Paths(find_root())
     if args.command == "open":
         return cmd_open(paths)
     if args.command == "check":
         return cmd_check(paths)
-    if args.command == "init":
-        return cmd_init(paths)
-    if args.command == "stop":
-        return cmd_stop(paths)
-    return serve(paths, idle_seconds=args.idle, port=args.port)
+    return cmd_init(paths)
