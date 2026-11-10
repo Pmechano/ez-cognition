@@ -1,0 +1,28 @@
+.set-row {
+  display: grid;
+  grid-template-columns: minmax(8ch, 14ch) minmax(0, 1fr);
+  gap: 0 2ch;
+  padding: 0.3rem 0 0.3rem 6ch;
+}
+
+.set input, .set select {
+  font: inherit;
+  color: var(--bright);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--frame);
+  border-radius: 0;
+  padding: 0 0.5ch;
+  caret-color: var(--bright);
+}
+
+.set input { width: 24ch; max-width: 100%; }
+
+.set select option { background: var(--bg); color: var(--text); }
+
+.set-toggle { white-space: pre-wrap; }
+.set-toggle:hover { color: var(--bright); }
+
+@media (max-width: 760px) {
+  .set-row { grid-template-columns: minmax(0, 1fr); padding-left: 0; }
+}

@@ -1,0 +1,196 @@
+/* ez-cognition core styles. Colours and the font come from the theme.
+ *
+ * Rules of the look:
+ * - one hue; importance is brightness: .dim, plain, .bright, .hot
+ * - reverse video marks the one selected thing
+ * - regions are 1px lines with square corners; no fills, no shadows
+ * - marks are ASCII: [+] [-] [x] [ ] (*) => //
+ * - motion only shows what changed; it is short and it never loops
+ */
+
+*, *::before, *::after { box-sizing: border-box; }
+
+html {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 15px;
+  line-height: 1.75;
+  -webkit-text-size-adjust: 100%;
+}
+
+body { margin: 0; }
+
+::selection { background: var(--text); color: var(--bg); }
+
+.page {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.1rem 1.25rem 4rem;
+}
+
+/* ---------- brightness ---------- */
+
+.dim { color: var(--dim); }
+.bright { color: var(--bright); }
+.hot { color: var(--hot); }
+
+/* ---------- text ---------- */
+
+h1 {
+  margin: 1.6rem 0 0.15rem;
+  font-size: 1.55rem;
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--bright);
+}
+
+p { margin: 0 0 0.5rem; }
+
+.goal { margin-bottom: 0.35rem; }
+
+.from, .label { color: var(--dim); font-size: 0.87rem; }
+
+.from { overflow-wrap: anywhere; }
+
+code {
+  font-family: inherit;
+  color: var(--bright);
+  overflow-wrap: anywhere;
+}
+
+code::before, code::after { content: "`"; color: var(--dim); }
+
+.points {
+  margin: 0.2rem 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.points li {
+  position: relative;
+  padding-left: 2ch;
+  overflow-wrap: anywhere;
+}
+
+.points li::before {
+  content: "-";
+  position: absolute;
+  left: 0;
+  color: var(--dim);
+}
+
+/* ---------- top line ---------- */
+
+.top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.2rem 1.5ch;
+  padding-bottom: 0.55rem;
+  border-bottom: 1px solid var(--frame);
+}
+
+.brand { letter-spacing: 0.14em; }
+
+.tasks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.5ch;
+  margin-left: auto;
+}
+
+button {
+  all: unset;
+  box-sizing: border-box;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+}
+
+.tab { padding: 0 1ch; color: var(--dim); }
+.tab::before { content: "/ "; }
+.tab::after { content: " \\"; }
+.tab:hover { color: var(--bright); }
+.tab.on { background: var(--text); color: var(--bg); }
+
+/* ---------- folds and panels ---------- */
+
+.fold-head {
+  display: grid;
+  grid-template-columns: 4ch minmax(0, 1fr);
+  width: 100%;
+  text-align: left;
+}
+
+.mark { color: var(--dim); white-space: pre; }
+
+.fold-head:hover > .mark { color: var(--bright); }
+
+.fold-head:focus-visible { outline: none; }
+.fold-head:focus-visible > .mark { background: var(--text); color: var(--bg); }
+
+button:focus-visible, input:focus-visible, select:focus-visible {
+  outline: 1px solid var(--bright);
+  outline-offset: 2px;
+}
+
+.panel {
+  margin-top: 1.1rem;
+  border: 1px solid var(--frame);
+}
+
+.panel > .fold-head {
+  /* Modules that make two columns inside a panel use the same four tracks. */
+  grid-template-columns: 4ch minmax(0, 5fr) minmax(0, 7fr) 3ch;
+  gap: 0 2ch;
+  padding: 0.5rem 0.9rem;
+}
+
+.panel-title { color: var(--bright); }
+
+.panel[data-open="true"] > .fold-head { border-bottom: 1px solid var(--frame); }
+
+.panel > .fold-body { padding: 0.25rem 0.9rem 0.6rem; }
+
+.trouble {
+  margin-top: 1.1rem;
+  padding: 0.5rem 0.9rem;
+  border: 1px solid var(--hot);
+}
+
+.status {
+  margin-top: 1.4rem;
+  font-size: 0.87rem;
+}
+
+/* ---------- motion ---------- */
+
+@keyframes opening {
+  from { opacity: 0; transform: translateY(-3px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes flash {
+  from { color: var(--hot); }
+}
+
+.fold-body.opening { animation: opening 140ms ease-out 1; }
+
+/* A row that changed in the last refresh: hot, then back to its own colour. */
+.flash > .fold-head, .flash > .fold-head * { animation: flash 2.4s ease-out 1; }
+
+:root[data-motion="off"] *, :root[data-motion="off"] *::before { animation: none !important; transition: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ---------- narrow screens ---------- */
+
+@media (max-width: 760px) {
+  html { font-size: 14px; }
+  .page { padding: 0.8rem 0.8rem 3rem; }
+  .panel > .fold-head { grid-template-columns: 4ch minmax(0, 1fr); }
+  .panel-summary { grid-column: 2; }
+}

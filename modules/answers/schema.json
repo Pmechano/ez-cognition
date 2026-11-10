@@ -1,0 +1,38 @@
+{
+  "properties": {
+    "answers": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["answer"],
+        "additionalProperties": false,
+        "properties": {
+          "answer": { "type": "string", "minLength": 1 },
+          "detail": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+          "directions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["id", "who", "explores"],
+              "additionalProperties": false,
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]{0,29}$",
+                  "patternHint": "must be lowercase ASCII letters, digits and '-', at most 30 characters"
+                },
+                "who": {
+                  "type": "string",
+                  "pattern": "^[a-z0-9][a-z0-9-]{0,29}$",
+                  "patternHint": "must be the member's name: lowercase ASCII letters, digits and '-'"
+                },
+                "explores": { "type": "string", "minLength": 1 },
+                "found": { "type": "string", "minLength": 1 }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

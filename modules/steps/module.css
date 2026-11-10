@@ -1,0 +1,58 @@
+.panel-steps > .fold-body { padding-top: 0; padding-bottom: 0; }
+
+.step { border-top: 1px solid var(--rule); }
+.step:first-child { border-top: 0; }
+
+/* The closed row: the step on the left, our answer on the right. The two
+ * columns are the same as in the panel head and in the open row. */
+.step > .fold-head {
+  grid-template-columns: 4ch minmax(0, 5fr) minmax(0, 7fr) 3ch;
+  gap: 0 2ch;
+  padding: 0.45rem 0;
+  overflow-wrap: anywhere;
+}
+
+.step > .fold-head:hover .step-title { color: var(--bright); }
+
+.step[data-open="true"] > .fold-head .step-title { color: var(--bright); }
+
+/* The open row shows the full answer, so its head does not say it again. */
+.step[data-open="true"] > .fold-head .step-line { visibility: hidden; }
+
+.step-flag { text-align: right; white-space: pre; }
+
+.step > .fold-body { padding: 0.1rem 0 0.7rem; }
+
+.step-cols {
+  display: grid;
+  grid-template-columns: 4ch minmax(0, 5fr) minmax(0, 7fr) 3ch;
+  gap: 0 2ch;
+}
+
+.step-ask { grid-column: 2; }
+.step-ours { grid-column: 3; }
+
+.step-ask, .step-ours { overflow-wrap: anywhere; }
+
+.part + .part { margin-top: 0.6rem; }
+
+.step-foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 2ch;
+  margin-top: 0.35rem;
+  padding-left: calc(4ch + 2ch);
+}
+
+.step-ack { color: var(--dim); white-space: pre; }
+.step-ack:hover { color: var(--bright); }
+
+@media (max-width: 760px) {
+  .step > .fold-head { grid-template-columns: 4ch minmax(0, 1fr) 3ch; }
+  .step-line { grid-column: 2; }
+  .step[data-open="true"] > .fold-head .step-line { display: none; }
+  .step-flag { grid-column: 3; grid-row: 1; }
+  .step-cols { grid-template-columns: 4ch minmax(0, 1fr); }
+  .step-ask, .step-ours { grid-column: 2; }
+  .step-ours { margin-top: 0.5rem; }
+}
