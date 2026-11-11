@@ -35,6 +35,11 @@ registry.add("panel", {
   when: (record) => Boolean(record?.submit),
   title: () => t("submit.title", "提交要求"),
   summary: (record) => record.submit.summary,
+  // The next deadline, beside the entry in the tree of contents.
+  tocNote: (record) => {
+    const next = (record.submit.deliverables ?? []).find((d) => !d.done && d.due);
+    return next ? `${t("submit.next", "下一个")} ${next.due}` : "";
+  },
   render(record, el) {
     const submit = record.submit;
     const list = submit.deliverables ?? [];

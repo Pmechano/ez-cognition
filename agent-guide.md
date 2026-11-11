@@ -26,9 +26,11 @@ python <plugin>/ezc.py stop
 - `open` adds this project to the page, starts the local server if it does not run, and shows the page in the user's browser. It prints the address, the state of each record, the user's name and the git branch. If the page is already open, the page changes to this project, and `open` does not open a second page.
 - `check` validates the records and the images. It prints the problems, or `OK`.
 - `init` is for the leader's setup.
-- `stop` stops the server now, for all projects. Usually you do not need it: the server stops by itself approximately one minute after the user closes the page.
+- `stop` stops the server, for all projects. Usually you do not need it.
 
 One server and one page show all the projects on the computer. Projects in WSL are included. The address is `http://127.0.0.1:22267/`. If the system refuses this port, the server uses one of the next ports, and `open` prints it. Do not start a server in another way.
+
+The server stays running, so that the user can open the page at any time. It does not start with the computer. `open` starts it when it does not run: at the start of each session, and before you ask the user to look at the page (for example after you changed the record). Do not check the server at other times.
 
 The page refreshes by itself when a record changes. The page never calls a model. When the user has a question about the page, the user asks you.
 
@@ -46,7 +48,7 @@ Do the setup on `main`.
 ## Start of each session
 
 1. Run `open`. If it prints that the user has no name, ask the user to write a name in the settings panel of the page. Do not write it yourself.
-2. Read the record. For the exact wording of a requirement, read the source file.
+2. Read the record: first the text that the page shows (this is what you and the user agree on), then the `notes` and the sources. For the exact wording of a requirement, read the source file.
 3. Read the Slack channel as `collab-guide.md` tells you.
 4. Ask what the user wants to do, if you do not know.
 
@@ -142,6 +144,7 @@ The page shows the parts in this order: the title and the goal, the task, our so
 | `title` | The name of the assignment, as the members say it. |
 | `goal` | One or two sentences: what the group makes, and what it must show. |
 | `sources` | The source files. The page does not show them. |
+| `notes` | On a task card, a step or an answer: details for the agents (see "Agent notes"). |
 | `terms` | Each word that a member may not know, and its meaning. The page shows a note when the member points at the word. |
 | `task.summary` | One sentence: what the work does. The closed panel shows it. |
 | `task.cards` | The task as a study note (see "Write the task"). Each card has a `title`, a Markdown `text`, and an optional `image`. |
@@ -200,6 +203,13 @@ The card (`title`, then `text`):
 
 **小组人数**：每组 2 人。
 ```
+
+## Agent notes
+
+The text that the page shows is the shared understanding of the user and the agents. Keep it short and clear for people. Put the details that an agent needs and a person does not in `notes` (Markdown) on the same task card, step or answer: exact settings, file paths, commands, constraints, the exact wording of a requirement. The page hides `notes`, unless the user turns them on in the settings.
+
+- `notes` only add details. They must not say something else than the shown text. If they disagree, the shown text is right: fix the notes, and tell the user.
+- Do not put in `notes` a decision that the user did not see. A decision belongs in the shown text.
 
 ## Images
 

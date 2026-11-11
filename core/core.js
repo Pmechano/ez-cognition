@@ -1,9 +1,10 @@
 // ez-cognition core.
 //
 // The core knows nothing about tasks. It gives the modules four things:
-// a registry, a page shell with folding panels, the personal state, and a
-// refresh when a record changes. Everything that the page shows comes
-// from a module in /modules/. The core must still run with no module.
+// a registry, a page shell (a sidebar with a tree of contents, and the
+// record), the personal state, and a refresh when a record changes.
+// Everything that the page shows comes from a module in /modules/. The core
+// must still run with no module.
 //
 // One page shows all the projects on this computer. A project has one or
 // more tasks; the page shows one task at a time.
@@ -11,7 +12,8 @@
 // A module is a folder with a module.js that imports this file and registers
 // what it adds:
 //
-//   registry.add("panel", { id, order, title(task), summary(task), render(task, el), when(task) })
+//   registry.add("panel", { id, order, title(task), summary(task), render(task, el), when(task),
+//                           toc(task), tocNote(task), slot })   // see "page" below
 //   registry.add("annotator", { id, apply(root, record) })  // marks text in a part of the page
 //
 // A module can define its own kind and let other modules add to it. The
@@ -86,13 +88,14 @@ export function points(list) {
 }
 
 // A card: a title, Markdown text, and an image beside the text (below it on
-// a narrow screen). A card is one part of the page for the annotators.
-export function card({ title, text, image }, cls = "") {
+// a narrow screen). A card is one part of the page for the annotators. With
+// an `id`, the card is an entry of the tree of contents.
+export function card({ title, text, image, notes: extra }, cls = "", id = null) {
   const pic = picture(image);
   return h(
     "article",
-    { class: `card${pic ? " has-image" : ""}${cls ? " " + cls : ""}`, "data-scope": "" },
-    h("div", { class: "card-text" }, title && h("h3", { class: "card-title" }, rich(title)), md(text)),
+    { class: `card${pic ? " has-image" : ""}${cls ? " " + cls : ""}`, "data-scope": "", id, "data-toc": id ? "" : null },
+    h("div", { class: "card-text" }, title && h("h3", { class: "card-title" }, rich(title)), md(text), notes(extra)),
     pic && h("div", { class: "card-image" }, pic),
   );
 }
@@ -164,7 +167,7 @@ export function t(key, zh) {
 
 const app = {
   manifest: { projects: [], focus: null, modules: [], themes: [], locales: [] },
-  user: { name: "", theme: "auto", motion: true, language: "zh" },
+  user: { name: "", theme: "auto", motion: true, language: "zh", notes: false },
   view: {},
   projectId: null,
   taskId: null,
@@ -216,10 +219,11 @@ function save(patch) {
   timer = setTimeout(flush, 200);
 }
 
-export function saveUser(patch) {
+export function saveUser(patch, redraw = false) {
   Object.assign(app.user, patch);
   save({ user: { ...app.user } });
   applyUser();
+  if (redraw) render();
 }
 
 // The personal state of the open task: what is folded, what the user marked.
@@ -300,41 +304,237 @@ function applyUser() {
 light.addEventListener?.("change", applyUser);
 
 // ---------- page ----------
+//
+// A wiki-like page: a sidebar with the projects, a tree of contents and the
+// settings; the record on the right, fully open. The tree comes from the
+// panels: a panel can give `toc(record)` -> [{ id, title, mark?, note?, children? }],
+// and it puts `id={anchor(panel.id, entry.id)}` on the element of each entry.
+// mark: "done" | "doing" | "todo". A panel with `slot: "settings"` is shown
+// in the settings window of the gear, not in the record.
 
-function tabs(cls, items, current, pick) {
+const ANCHOR_UNSAFE = /[^a-zA-Z0-9_-]/g;
+
+export function anchor(panelId, entryId) {
+  const clean = (part) => String(part).replace(ANCHOR_UNSAFE, "_");
+  return entryId === undefined ? `s-${clean(panelId)}` : `s-${clean(panelId)}-${clean(entryId)}`;
+}
+
+// Agent notes: details for the agents. Hidden unless the user turns them on.
+export function notes(text) {
+  if (!text || !app.user.notes) return null;
+  return h("aside", { class: "notes", "data-scope": "" }, h("div", { class: "notes-label" }, t("core.notes", "agent 附注")), md(text));
+}
+
+const MARKS = { done: "●", doing: "◐", todo: "○" };
+
+let settingsOpen = false;
+let drawerOpen = false;
+
+function mainPanels() {
+  return registry.list("panel").filter((panel) => (panel.slot ?? "main") === "main");
+}
+
+function shown(panel) {
+  try {
+    return !panel.when || panel.when(app.task);
+  } catch {
+    return false;
+  }
+}
+
+function tocEntries(panel) {
+  try {
+    return panel.toc ? panel.toc(app.task) ?? [] : [];
+  } catch {
+    return [];
+  }
+}
+
+function goTo(id) {
+  const target = document.getElementById(id);
+  if (!target) return;
+  history.replaceState(null, "", `${location.search}#${id}`);
+  target.scrollIntoView({ behavior: app.user.motion ? "smooth" : "auto", block: "start" });
+  drawerOpen = false;
+  document.body.classList.remove("drawer-open");
+}
+
+function tocItem(panel, entry, depth) {
+  const id = anchor(panel.id, entry.id);
+  const kids = entry.children ?? [];
+  const closed = state.get("toc", {})[id] === false;
+  const toggle =
+    kids.length > 0 &&
+    h(
+      "button",
+      {
+        type: "button",
+        class: "toc-toggle",
+        "aria-label": t("core.toggle", "展开或收起"),
+        onclick: () => {
+          state.set("toc", { ...state.get("toc", {}), [id]: closed });
+          renderSidebar();
+        },
+      },
+      closed ? "▸" : "▾",
+    );
   return h(
-    "nav",
-    { class: cls },
-    items.map((item) =>
+    "li",
+    { class: `toc-item depth-${depth}` },
+    h(
+      "div",
+      { class: "toc-row" },
+      toggle || h("span", { class: "toc-toggle" }),
+      h(
+        "a",
+        { href: `#${id}`, "data-target": id, onclick: (event) => (event.preventDefault(), goTo(id)) },
+        entry.mark && h("span", { class: `toc-mark ${entry.mark}`, title: entry.mark }, MARKS[entry.mark] ?? ""),
+        h("span", { class: "toc-title" }, rich(entry.title)),
+        entry.note && h("span", { class: "toc-note" }, rich(entry.note)),
+      ),
+    ),
+    kids.length > 0 && !closed && h("ul", { class: "toc-list" }, kids.map((kid) => tocItem(panel, kid, depth + 1))),
+  );
+}
+
+function tree() {
+  if (!app.task) return null;
+  const items = [];
+  for (const panel of mainPanels()) {
+    if (!shown(panel)) continue;
+    const entries = tocEntries(panel);
+    const id = anchor(panel.id);
+    const closed = state.get("toc", {})[id] === false;
+    let summary = "";
+    try {
+      summary = panel.tocNote ? panel.tocNote(app.task) : "";
+    } catch {
+      summary = "";
+    }
+    items.push(
+      h(
+        "li",
+        { class: "toc-item depth-0" },
+        h(
+          "div",
+          { class: "toc-row" },
+          entries.length
+            ? h(
+                "button",
+                {
+                  type: "button",
+                  class: "toc-toggle",
+                  "aria-label": t("core.toggle", "展开或收起"),
+                  onclick: () => {
+                    state.set("toc", { ...state.get("toc", {}), [id]: closed });
+                    renderSidebar();
+                  },
+                },
+                closed ? "▸" : "▾",
+              )
+            : h("span", { class: "toc-toggle" }),
+          h(
+            "a",
+            { href: `#${id}`, "data-target": id, onclick: (event) => (event.preventDefault(), goTo(id)) },
+            h("span", { class: "toc-title" }, panel.title ? panel.title(app.task) : panel.id),
+            summary && h("span", { class: "toc-note" }, rich(summary)),
+          ),
+        ),
+        entries.length > 0 && !closed && h("ul", { class: "toc-list" }, entries.map((entry) => tocItem(panel, entry, 1))),
+      ),
+    );
+  }
+  return h("nav", { class: "toc", "aria-label": t("core.contents", "目录") }, h("ul", { class: "toc-list" }, items));
+}
+
+function switcher() {
+  const projects = app.manifest.projects;
+  const tasks = project()?.tasks ?? [];
+  const parts = [];
+  if (projects.length > 1) {
+    parts.push(
+      h(
+        "select",
+        {
+          class: "switch",
+          "aria-label": t("core.project", "项目"),
+          onchange: (event) => choose(event.target.value, null),
+        },
+        projects.map((p) => h("option", { value: p.id, selected: p.id === app.projectId }, p.name)),
+      ),
+    );
+  } else if (projects.length === 1) {
+    parts.push(h("div", { class: "switch-one" }, projects[0].name));
+  }
+  if (tasks.length > 1) {
+    parts.push(
+      h(
+        "div",
+        { class: "records" },
+        tasks.map((task) =>
+          h(
+            "button",
+            { type: "button", class: task.id === app.taskId ? "record on" : "record", onclick: () => choose(app.projectId, task.id) },
+            task.title,
+          ),
+        ),
+      ),
+    );
+  }
+  return parts;
+}
+
+function settingsWindow() {
+  if (!settingsOpen) return null;
+  const box = h("div", { class: "settings-pop", role: "dialog", "aria-label": t("core.settings", "设置") });
+  for (const panel of registry.list("panel").filter((p) => p.slot === "settings")) {
+    try {
+      panel.render(app.task, box);
+    } catch (err) {
+      box.append(h("p", { class: "hot" }, `${panel.id}: ${err}`));
+    }
+  }
+  return box;
+}
+
+function sidebar() {
+  return h(
+    "aside",
+    { class: "sidebar", id: "sidebar" },
+    h("div", { class: "side-top" }, h("div", { class: "brand" }, "EZ-COGNITION"), switcher()),
+    h("div", { class: "side-tree" }, tree()),
+    h(
+      "div",
+      { class: "side-bottom" },
+      settingsWindow(),
       h(
         "button",
         {
           type: "button",
-          class: item.id === current ? "tab on" : "tab",
-          "aria-current": item.id === current ? "page" : null,
-          onclick: () => pick(item.id),
+          class: settingsOpen ? "gear on" : "gear",
+          "aria-expanded": String(settingsOpen),
+          onclick: () => {
+            settingsOpen = !settingsOpen;
+            renderSidebar();
+          },
         },
-        item.label,
+        h("span", { class: "gear-icon" }, "⚙"),
+        t("core.settings", "设置"),
       ),
+      status(),
     ),
   );
 }
 
-function top() {
-  const projects = app.manifest.projects;
-  const tasks = project()?.tasks ?? [];
-  return [
-    h(
-      "header",
-      { class: "top" },
-      h("span", { class: "brand" }, "EZ-COGNITION"),
-      projects.length === 1 && h("span", { class: "dim" }, "// ", projects[0].name),
-      projects.length > 1 &&
-        tabs("projects", projects.map((p) => ({ id: p.id, label: p.name })), app.projectId, (id) => choose(id, null)),
-    ),
-    tasks.length > 1 &&
-      tabs("tasks", tasks.map((task) => ({ id: task.id, label: task.title })), app.taskId, (id) => choose(app.projectId, id)),
-  ];
+function renderSidebar() {
+  const old = document.getElementById("sidebar");
+  if (!old) return;
+  const scroll = old.querySelector(".side-tree")?.scrollTop ?? 0;
+  const fresh = sidebar();
+  old.replaceWith(fresh);
+  const box = fresh.querySelector(".side-tree");
+  if (box) box.scrollTop = scroll;
+  spy();
 }
 
 function trouble() {
@@ -348,83 +548,149 @@ function trouble() {
   );
 }
 
-function panels() {
+function sections() {
   const out = [];
-  for (const panel of registry.list("panel")) {
+  for (const panel of mainPanels()) {
+    if (!shown(panel)) continue;
+    let summary = "";
     try {
-      if (panel.when && !panel.when(app.task)) continue;
-      const title = panel.title ? panel.title(app.task) : panel.id;
-      const summary = panel.summary ? panel.summary(app.task) : "";
-      out.push(
-        fold({
-          key: `panel:${panel.id}`,
-          open: panel.open ?? true,
-          cls: `panel panel-${panel.id}`,
-          head: [
-            h("span", { class: "panel-title" }, title),
-            h("span", { class: "panel-summary" }, summary ? rich(summary) : ""),
-          ],
-          body(el) {
-            try {
-              panel.render(app.task, el);
-            } catch (err) {
-              el.append(h("p", { class: "hot" }, t("core.broken", "这个栏目显示不出来："), String(err)));
-            }
-          },
-        }),
-      );
-    } catch (err) {
-      out.push(h("p", { class: "hot" }, `${panel.id}: ${err}`));
+      summary = panel.summary ? panel.summary(app.task) : "";
+    } catch {
+      summary = "";
     }
+    const body = h("div", { class: "section-body" });
+    try {
+      panel.render(app.task, body);
+    } catch (err) {
+      body.append(h("p", { class: "hot" }, t("core.broken", "这个栏目显示不出来："), String(err)));
+    }
+    out.push(
+      h(
+        "section",
+        { class: `section panel-${panel.id}`, id: anchor(panel.id), "data-toc": "" },
+        h("h2", { class: "section-title" }, panel.title ? panel.title(app.task) : panel.id),
+        summary && h("p", { class: "section-summary" }, rich(summary)),
+        body,
+      ),
+    );
   }
   return out;
 }
 
-function body() {
+function content() {
   if (!app.manifest.projects.length) {
     return h(
       "main",
-      null,
+      { class: "content" },
       h("h1", null, t("core.noproject", "还没有项目")),
       h("p", null, t("core.noproject.how", "在一个项目里让你的 agent 运行 open，这个项目就会出现在这里。")),
-      panels(),
     );
   }
   if (!project()?.tasks.length) {
     return h(
       "main",
-      null,
+      { class: "content" },
       h("h1", null, t("core.empty", "还没有记录")),
       h("p", null, t("core.empty.how", "让组长的 agent 按 agent-guide.md 写一份。写好后，这个页面会自己刷新。")),
-      panels(),
     );
   }
-  if (!app.task) return h("main", null, trouble());
+  if (!app.task) return h("main", { class: "content" }, trouble());
   // The sources stay in the record for the agents. The page does not show them.
   return h(
     "main",
-    null,
+    { class: "content" },
     h("h1", null, rich(app.task.title)),
     h("div", { class: "goal", "data-scope": "" }, md(app.task.goal)),
     trouble(),
-    panels(),
+    sections(),
   );
 }
 
 function status() {
   if (!app.online) {
-    return h("footer", { class: "status hot" }, t("core.offline", "(*) 服务已停止。让你的 agent 运行 open，这个页面会自己恢复。"));
+    return h("div", { class: "status hot" }, t("core.offline", "服务已停止。让你的 agent 运行 open，这个页面会自己恢复。"));
   }
   const time = app.updated ? app.updated.toLocaleTimeString(undefined, { hour12: false }) : "";
-  return h("footer", { class: "status dim" }, t("core.online", "已连接。记录变了，页面会自己刷新。"), time && ` ${t("core.updated", "上次读取")} ${time}`);
+  return h("div", { class: "status dim" }, t("core.online", "已连接，记录变了会自己刷新"), time && ` · ${time}`);
 }
+
+function phoneBar() {
+  return h(
+    "header",
+    { class: "phone-bar" },
+    h(
+      "button",
+      {
+        type: "button",
+        class: "menu",
+        "aria-label": t("core.menu", "目录"),
+        onclick: () => {
+          drawerOpen = !drawerOpen;
+          document.body.classList.toggle("drawer-open", drawerOpen);
+        },
+      },
+      "☰",
+    ),
+    h("span", { class: "phone-title" }, app.task ? rich(app.task.title) : "ez-cognition"),
+  );
+}
+
+// The entry of the tree that the reader is at: the last anchor above the top
+// quarter of the window.
+let spying = false;
+
+function spy() {
+  const anchors = [...document.querySelectorAll(".content [data-toc]")];
+  const line = window.innerHeight * 0.25;
+  let current = null;
+  for (const el of anchors) {
+    if (el.getBoundingClientRect().top <= line) current = el.id;
+    else break;
+  }
+  for (const link of document.querySelectorAll(".toc a")) {
+    link.classList.toggle("here", link.dataset.target === current);
+  }
+}
+
+function watchScroll() {
+  if (spying) return;
+  spying = true;
+  let queued = false;
+  window.addEventListener(
+    "scroll",
+    () => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        spy();
+      });
+    },
+    { passive: true },
+  );
+}
+
+let firstRender = true;
 
 function render() {
   const name = project()?.name;
   document.title = [app.task?.title, name, "ez-cognition"].filter(Boolean).join(" · ");
   const root = document.getElementById("app");
-  root.replaceChildren(...[...top(), body(), status()].filter(Boolean));
+  const scroll = window.scrollY;
+  const treeScroll = document.querySelector(".side-tree")?.scrollTop ?? 0;
+  root.replaceChildren(phoneBar(), h("div", { class: "layout" }, sidebar(), content()));
   finish(root);
+  const box = document.querySelector(".side-tree");
+  if (box) box.scrollTop = treeScroll;
+  if (firstRender && location.hash) {
+    firstRender = false;
+    document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView({ block: "start" });
+  } else {
+    firstRender = false;
+    window.scrollTo(0, scroll);
+  }
+  watchScroll();
+  spy();
 }
 
 // ---------- data ----------
@@ -482,7 +748,7 @@ function remember() {
   if (!app.projectId) return;
   const query = new URLSearchParams({ project: app.projectId });
   if (app.taskId) query.set("task", app.taskId);
-  history.replaceState(null, "", `?${query}`);
+  history.replaceState(null, "", `?${query}${location.hash}`);
 }
 
 async function load() {
@@ -514,6 +780,8 @@ async function load() {
 }
 
 async function choose(projectId, taskId) {
+  history.replaceState(null, "", location.search);
+  window.scrollTo(0, 0);
   if (projectId !== app.projectId) {
     await flush();
     app.projectId = projectId;

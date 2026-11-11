@@ -131,10 +131,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     commands.add_parser("open", help="start the server if it does not run, and show the page")
     commands.add_parser("check", help="validate the records")
     commands.add_parser("init", help="leader setup: create %s/" % DATA_DIR)
-    commands.add_parser("stop", help="stop the server now (it serves all projects)")
+    commands.add_parser("stop", help="stop the server (it serves all projects and stays running until then)")
     run = commands.add_parser("serve", help="run the server in this terminal (all projects)")
     run.add_argument("--idle", type=float, default=IDLE_SECONDS,
-                     help="seconds without an open page before the server stops")
+                     help="stop after this many seconds without an open page (default: never)")
     run.add_argument("--port", type=int, default=None)
     args = parser.parse_args(argv)
 

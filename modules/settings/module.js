@@ -1,32 +1,47 @@
-// Panel: the personal settings of the user. The name belongs to this
-// project (cognition-data/.local/user.json, which git ignores). The look is
-// the same in all projects (~/.ez-cognition/user.json).
+// The settings of the user, in the window of the gear at the bottom left.
+// The name belongs to this project (cognition-data/.local/user.json, which
+// git ignores). The look is the same in all projects (~/.ez-cognition/user.json).
 
 import { registry, h, t, user, saveUser, manifest } from "/core/core.js";
 
+const NAME = /^[a-z0-9][a-z0-9-]{0,29}$/;
 const SCHEME = { dark: "深色", light: "浅色" };
 
-const NAME = /^[a-z0-9][a-z0-9-]{0,29}$/;
+function toggle(key, label) {
+  const button = h(
+    "button",
+    {
+      type: "button",
+      class: "set-toggle",
+      role: "switch",
+      "aria-checked": String(Boolean(user()[key])),
+      onclick: () => saveUser({ [key]: !user()[key] }, true),
+    },
+    h("span", { class: user()[key] ? "switch-on" : "switch-off" }, user()[key] ? "开" : "关"),
+    " ",
+    label,
+  );
+  return button;
+}
 
 registry.add("panel", {
   id: "settings",
-  order: 900,
-  open: false,
+  slot: "settings",
   title: () => t("settings.title", "设置"),
-  summary: () => user().name || t("settings.noname", "还没有名字"),
   render(task, el) {
     const me = user();
-    const hint = h("span", { class: "dim" });
+    const hint = h("div", { class: "set-hint dim" });
     const input = h("input", {
       type: "text",
       value: me.name,
       maxlength: "30",
       spellcheck: "false",
       autocomplete: "off",
+      placeholder: t("settings.name.placeholder", "例如 zez"),
       "aria-label": t("settings.name", "名字"),
     });
     const say = (text, hot) => {
-      hint.className = hot ? "hot" : "dim";
+      hint.className = hot ? "set-hint hot" : "set-hint dim";
       hint.textContent = text;
     };
     const keep = () => {
@@ -38,17 +53,15 @@ registry.add("panel", {
       }
       saveUser({ name });
       say(t("settings.saved", "已保存"), false);
-      const summary = el.closest(".panel")?.querySelector(".panel-summary");
-      if (summary) summary.textContent = name || t("settings.noname", "还没有名字");
     };
     input.addEventListener("change", keep);
     input.addEventListener("keydown", (event) => {
       if (event.key === "Enter") input.blur();
     });
-    say(t("settings.name.why", "只在这个项目里用：分支名和方向记录用它。小写英文字母、数字和 -"), false);
+    say(t("settings.name.why", "只在这个项目里用：分支名和方向记录用它"), false);
 
     const rows = [
-      h("label", { class: "set-row" }, h("span", { class: "dim" }, t("settings.name", "名字")), h("span", null, input, " ", hint)),
+      h("label", { class: "set-row" }, h("span", { class: "set-label" }, t("settings.name", "名字")), input, hint),
     ];
 
     const themes = manifest().themes;
@@ -57,29 +70,24 @@ registry.add("panel", {
       const options = [{ value: "auto", text: t("settings.theme.auto", "跟随系统") }].concat(
         themes.map((theme) => ({ value: theme.name, text: label(theme) })),
       );
-      const select = h(
-        "select",
-        { "aria-label": t("settings.theme", "外观"), onchange: (event) => saveUser({ theme: event.target.value }) },
-        options.map((o) => h("option", { value: o.value, selected: o.value === me.theme }, o.text)),
+      rows.push(
+        h(
+          "label",
+          { class: "set-row" },
+          h("span", { class: "set-label" }, t("settings.theme", "外观")),
+          h(
+            "select",
+            { onchange: (event) => saveUser({ theme: event.target.value }) },
+            options.map((o) => h("option", { value: o.value, selected: o.value === me.theme }, o.text)),
+          ),
+        ),
       );
-      rows.push(h("label", { class: "set-row" }, h("span", { class: "dim" }, t("settings.theme", "外观")), select));
     }
 
-    const motion = h(
-      "button",
-      {
-        type: "button",
-        class: "set-toggle",
-        onclick: () => {
-          saveUser({ motion: !user().motion });
-          motion.firstChild.textContent = user().motion ? "[x] " : "[ ] ";
-        },
-      },
-      me.motion ? "[x] " : "[ ] ",
-      t("settings.motion.on", "刷新后，标出变了的那一行"),
+    rows.push(
+      h("div", { class: "set-row" }, toggle("motion", t("settings.motion", "动效：标出刷新后变了的地方"))),
+      h("div", { class: "set-row" }, toggle("notes", t("settings.notes", "显示 agent 附注"))),
     );
-    rows.push(h("div", { class: "set-row" }, h("span", { class: "dim" }, t("settings.motion", "动效")), motion));
-
-    el.append(h("div", { class: "set" }, rows));
+    el.append(h("div", { class: "set" }, h("div", { class: "set-head" }, t("settings.title", "设置")), rows));
   },
 });

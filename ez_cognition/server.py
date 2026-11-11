@@ -4,8 +4,9 @@ All projects on a computer share this server, its port and its page. The
 projects come from the list in ~/.ez-cognition/projects.json, which `open`
 writes. The server serves the core, the modules and the themes as static
 files, the records as JSON, and the personal state. It tells the open
-pages when a record or the list changes. It stops by itself when no
-page has been open for a while: nothing stays resident.
+pages when a record or the list changes. It stays running, so that a
+person can open the page at any time; `stop` stops it. It does not start
+with the computer: after a restart, the next `open` starts it.
 
 An agent can be on the other side of WSL, where it cannot reach this port.
 So the server also writes its state to ~/.ez-cognition/server.json every
@@ -51,14 +52,14 @@ MIME = {
 MEDIA_POLICY = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
 STATIC = ("core", "modules", "themes", "locales")
 MAX_BODY = 256 * 1024
-IDLE_SECONDS = 60
+IDLE_SECONDS = None  # the server stays; tests and `serve --idle N` set a limit
 # The same port on every computer, so that people and agents know where the
 # page is. The system can refuse it; then the server takes one of the next.
 DEFAULT_PORT = 22267
 PORT_ENV = "EZC_PORT"  # development and tests only: another default port
 BEAT = 3.0    # seconds between two writes of server.json
 FRESH = 15.0  # a server.json older than this belongs to a server that stopped
-LOOK_DEFAULTS = {"theme": "auto", "motion": True, "language": "zh"}
+LOOK_DEFAULTS = {"theme": "auto", "motion": True, "language": "zh", "notes": False}
 LANGUAGE_RE = re.compile(r"^[a-z]{2,3}(-[A-Za-z0-9]{2,8})?$")
 SCHEME_RE = re.compile(r"color-scheme:\s*(dark|light)")
 
@@ -139,8 +140,9 @@ def clean_look(raw: Any, old: Any) -> Dict[str, Any]:
         return look
     if raw.get("theme") == "auto" or raw.get("theme") in [t["name"] for t in themes()]:
         look["theme"] = raw["theme"]
-    if isinstance(raw.get("motion"), bool):
-        look["motion"] = raw["motion"]
+    for key in ("motion", "notes"):
+        if isinstance(raw.get(key), bool):
+            look[key] = raw[key]
     language = raw.get("language")
     if isinstance(language, str) and LANGUAGE_RE.match(language):
         look["language"] = language
@@ -163,7 +165,7 @@ class Project:
 class App:
     """The state that the request threads share."""
 
-    def __init__(self, home: Home, idle_seconds: float = IDLE_SECONDS, tick: float = 1.0) -> None:
+    def __init__(self, home: Home, idle_seconds: Optional[float] = IDLE_SECONDS, tick: float = 1.0) -> None:
         self.home = home
         self.idle_seconds = idle_seconds
         self.tick = tick
@@ -296,7 +298,8 @@ class App:
         return True
 
     def watch(self, httpd: ThreadingHTTPServer) -> None:
-        """Tell the pages about changes. Stop the server when no page is open.
+        """Tell the pages about changes. With an idle limit, stop the server
+        when no page has been open for that long.
 
         The idle time is counted in ticks, not read from a clock. When the
         computer sleeps, the count stops too, so an open page has time to
@@ -320,7 +323,7 @@ class App:
                 pages, beat_at = self.pages, time.time()
                 self.write_record()
             idle = idle + self.tick if self.pages == 0 else 0.0
-            if idle >= self.idle_seconds:
+            if self.idle_seconds is not None and idle >= self.idle_seconds:
                 break
         self.close()
         httpd.shutdown()
@@ -516,8 +519,8 @@ def bind(port: Optional[int] = None, home: Optional[Home] = None) -> Optional[Se
     raise OSError("no free port near %d: %s" % (first, last_error))
 
 
-def serve(home: Home, idle_seconds: float = IDLE_SECONDS, port: Optional[int] = None) -> int:
-    """Run the server until no page has been open for `idle_seconds`."""
+def serve(home: Home, idle_seconds: Optional[float] = IDLE_SECONDS, port: Optional[int] = None) -> int:
+    """Run the server until `stop`, or until no page has been open for `idle_seconds`."""
     other = running(home)
     if other:
         print("a server runs already: http://127.0.0.1:%d/ (%s)" % (other["port"], other.get("side")), flush=True)

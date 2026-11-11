@@ -4,26 +4,54 @@
       "type": "object",
       "additionalProperties": {
         "type": "object",
-        "required": ["answer"],
+        "required": [
+          "answer"
+        ],
         "additionalProperties": false,
         "properties": {
-          "answer": { "type": "string", "minLength": 1 },
-          "detail": { "type": "string", "minLength": 1 },
+          "answer": {
+            "type": "string",
+            "minLength": 1
+          },
+          "detail": {
+            "type": "string",
+            "minLength": 1
+          },
           "image": {
             "type": "object",
-            "required": ["src", "alt"],
+            "required": [
+              "src",
+              "alt"
+            ],
             "additionalProperties": false,
             "properties": {
-              "src": { "type": "string", "minLength": 1 },
-              "alt": { "type": "string", "minLength": 1 }
+              "src": {
+                "type": "string",
+                "minLength": 1
+              },
+              "alt": {
+                "type": "string",
+                "minLength": 1
+              }
             }
           },
-          "state": { "type": "string", "enum": ["todo", "doing", "done"] },
+          "state": {
+            "type": "string",
+            "enum": [
+              "todo",
+              "doing",
+              "done"
+            ]
+          },
           "directions": {
             "type": "array",
             "items": {
               "type": "object",
-              "required": ["id", "who", "explores"],
+              "required": [
+                "id",
+                "who",
+                "explores"
+              ],
               "additionalProperties": false,
               "properties": {
                 "id": {
@@ -36,11 +64,28 @@
                   "pattern": "^[a-z0-9][a-z0-9-]{0,29}$",
                   "patternHint": "must be the member's name: lowercase ASCII letters, digits and '-'"
                 },
-                "explores": { "type": "string", "minLength": 1 },
-                "found": { "type": "string", "minLength": 1 },
-                "state": { "type": "string", "enum": ["todo", "doing", "done"] }
+                "explores": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "found": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "state": {
+                  "type": "string",
+                  "enum": [
+                    "todo",
+                    "doing",
+                    "done"
+                  ]
+                }
               }
             }
+          },
+          "notes": {
+            "type": "string",
+            "minLength": 1
           }
         }
       }

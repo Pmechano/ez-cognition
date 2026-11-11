@@ -183,7 +183,7 @@ class StateTest(ServerCase):
         self.start()
         code, state = self.get("/api/state?project=%s" % self.pid)
         self.assertEqual(code, 200)
-        self.assertEqual(state, {"user": {"name": "", "theme": "auto", "motion": True, "language": "zh"}, "view": {}})
+        self.assertEqual(state, {"user": {"name": "", "theme": "auto", "motion": True, "language": "zh", "notes": False}, "view": {}})
         self.assertEqual(self.get("/api/state")[1]["user"]["name"], "")
 
     def test_write_needs_the_header(self):
@@ -211,6 +211,12 @@ class StateTest(ServerCase):
         other = slug(self.others[0].root.name)
         user = self.get("/api/state?project=%s" % other)[1]["user"]
         self.assertEqual((user["name"], user["theme"]), ("", "paper"))
+
+    def test_the_notes_switch_is_part_of_the_look(self):
+        self.start()
+        self.post("/api/state", {"project": self.pid, "user": {"notes": True}})
+        self.assertEqual(read_json(self.home.user), {"notes": True})
+        self.assertTrue(self.get("/api/state?project=%s" % self.pid)[1]["user"]["notes"])
 
     def test_bad_values_are_not_stored(self):
         self.start()
@@ -305,6 +311,12 @@ class LifeTest(ServerCase):
         self.start(idle=0.3)
         self.assertTrue(self.wait(lambda: not self.runner.is_alive()))
         self.assertIsNone(ping(self.port, timeout=0.3))
+
+    def test_stays_without_an_idle_limit(self):
+        self.start(idle=None)
+        time.sleep(0.5)
+        self.assertTrue(self.runner.is_alive())
+        self.assertEqual(server.IDLE_SECONDS, None)
 
     def test_stays_while_a_page_is_open(self):
         self.start(idle=0.3)

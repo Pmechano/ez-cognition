@@ -4,6 +4,7 @@
 //   detail?,                // more: the reasons, the settings, what is not decided (Markdown)
 //   image?: { src, alt },   // shown beside the text
 //   state?,                 // "todo" | "doing" | "done"
+//   notes?,                 // details for the agents; hidden unless the user turns notes on
 //   directions?: [{ id, who, explores, found?, state? }]
 // } }
 //
@@ -11,14 +12,14 @@
 // drafts. `directions` are what members explore inside it, and who explores
 // them. The page shows who does what, but it never counts or compares work.
 
-import { registry, h, rich, card, t, user } from "/core/core.js";
+import { registry, h, rich, card, t, user, notes } from "/core/core.js";
 
 const of = (step, task) => task.answers?.[step.id] ?? null;
 
 const STATES = {
-  todo: { text: () => t("answers.todo", "未开始"), kind: "" },
-  doing: { text: () => t("answers.doing", "进行中"), kind: "warn" },
-  done: { text: () => t("answers.done", "已完成"), kind: "ok" },
+  todo: { text: () => t("answers.todo", "未开始"), kind: "", mark: "todo" },
+  doing: { text: () => t("answers.doing", "进行中"), kind: "warn", mark: "doing" },
+  done: { text: () => t("answers.done", "已完成"), kind: "ok", mark: "done" },
 };
 
 function badge(value) {
@@ -34,7 +35,7 @@ registry.add("step-part", {
   summary: (step, task) => of(step, task)?.answer?.split("\n")[0] ?? null,
   badge: (step, task) => {
     const known = STATES[of(step, task)?.state];
-    return known ? { text: known.text(), kind: known.kind } : null;
+    return known ? { text: known.text(), kind: known.kind, mark: known.mark } : null;
   },
   render(step, task, el) {
     const mine = of(step, task);
@@ -44,7 +45,7 @@ registry.add("step-part", {
       return;
     }
     const text = mine.detail ? `${mine.answer}\n\n${mine.detail}` : mine.answer;
-    el.append(card({ text, image: mine.image }, "answer-card"));
+    el.append(card({ text, image: mine.image, notes: mine.notes }, "answer-card"));
 
     const directions = mine.directions ?? [];
     if (!directions.length) return;

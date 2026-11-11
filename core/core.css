@@ -6,6 +6,8 @@
  * - amber is the main colour; a few more colours, each with one meaning:
  *   ok (done), warn (in progress), hot (needs you), link
  * - a card puts the text on the left and the image on the right
+ * - a wiki-like layout: a sidebar with a tree of contents; the record is
+ *   fully open on the right; on a phone the sidebar is a drawer
  * - motion only shows what changed; it is short and it never loops
  */
 
@@ -140,24 +142,23 @@ figcaption { margin-top: 0.4rem; color: var(--dim); font-size: 0.88rem; }
 
 .points { margin: 0.2rem 0 0.5rem; }
 
-/* ---------- top line ---------- */
+/* ---------- layout: sidebar and content ---------- */
 
-.top {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 0.4rem 1.2rem;
-  padding-bottom: 0.7rem;
-  border-bottom: 1px solid var(--rule);
+.page { max-width: none; margin: 0; padding: 0; }
+
+.layout {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  min-height: 100vh;
 }
 
-.brand { font-family: var(--font-mono); font-size: 0.85rem; letter-spacing: 0.14em; color: var(--dim); }
+.content {
+  max-width: 60rem;
+  width: 100%;
+  padding: 1.5rem 2.5rem 6rem;
+}
 
-.projects, .tasks { display: flex; flex-wrap: wrap; gap: 0.35rem; }
-
-.projects { margin-left: auto; }
-
-.tasks { margin-top: 0.7rem; }
+.content > h1 { margin-top: 0.6rem; }
 
 button {
   all: unset;
@@ -167,51 +168,184 @@ button {
   color: inherit;
 }
 
-.tab {
-  padding: 0.15rem 0.8rem;
-  border: 1px solid transparent;
-  border-radius: 999px;
-  color: var(--dim);
-  font-size: 0.92rem;
-}
-
-.tab:hover { color: var(--bright); border-color: var(--rule); }
-.tab.on { background: var(--surface); border-color: var(--frame); color: var(--bright); }
-
-/* ---------- folds and panels ---------- */
-
-.fold-head {
-  display: grid;
-  grid-template-columns: 1.5rem minmax(0, 1fr);
-  align-items: baseline;
-  width: 100%;
-  text-align: left;
-}
-
-.mark { color: var(--dim); font-size: 0.9em; }
-
-.fold-head:hover > .mark { color: var(--link); }
-
-button:focus-visible, input:focus-visible, select:focus-visible {
+button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible {
   outline: 2px solid var(--link);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-.panel { margin-top: 2rem; }
+/* ---------- sidebar ---------- */
 
-.panel > .fold-head {
-  grid-template-columns: 1.5rem auto minmax(0, 1fr);
-  gap: 0 1rem;
-  padding: 0.3rem 0 0.6rem;
-  border-bottom: 1px solid var(--rule);
+.sidebar {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--rule);
+  background: var(--surface);
 }
 
-.panel-title { font-size: 1.4rem; font-weight: 700; color: var(--bright); white-space: nowrap; }
+.side-top { padding: 1rem 1rem 0.6rem; border-bottom: 1px solid var(--rule); }
 
-.panel-summary { color: var(--dim); font-size: 0.95rem; }
+.brand { font-family: var(--font-mono); font-size: 0.78rem; letter-spacing: 0.14em; color: var(--dim); margin-bottom: 0.55rem; }
 
-.panel > .fold-body { padding: 1rem 0 0; }
+.switch, .switch-one {
+  width: 100%;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--bright);
+}
+
+.switch {
+  padding: 0.3rem 0.5rem;
+  border: 1px solid var(--frame);
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.switch option { background: var(--bg); color: var(--text); }
+
+.records { display: grid; gap: 0.2rem; margin-top: 0.5rem; }
+
+.record { padding: 0.2rem 0.5rem; border-radius: 6px; color: var(--dim); font-size: 0.9rem; }
+.record:hover { color: var(--bright); }
+.record.on { background: var(--bg); color: var(--bright); }
+
+.side-tree { flex: 1; overflow-y: auto; padding: 0.7rem 0.6rem; }
+
+.side-bottom {
+  position: relative;
+  padding: 0.6rem 1rem 0.8rem;
+  border-top: 1px solid var(--rule);
+}
+
+.gear { display: flex; align-items: center; gap: 0.45rem; padding: 0.2rem 0.3rem; border-radius: 6px; color: var(--dim); }
+.gear:hover, .gear.on { color: var(--bright); }
+.gear-icon { font-size: 1.1rem; line-height: 1; }
+
+.settings-pop {
+  position: absolute;
+  left: 0.8rem;
+  bottom: calc(100% + 0.4rem);
+  z-index: 30;
+  width: 19rem;
+  max-width: calc(100vw - 1.6rem);
+  padding: 0.9rem 1rem;
+  border: 1px solid var(--frame);
+  border-radius: 12px;
+  background: var(--bg);
+  box-shadow: 0 12px 32px rgb(0 0 0 / 0.3);
+}
+
+.status { margin-top: 0.4rem; font-size: 0.76rem; }
+
+/* ---------- tree of contents ---------- */
+
+.toc-list { list-style: none; margin: 0; padding: 0; }
+
+.toc-list .toc-list { margin-left: 0.85rem; padding-left: 0.35rem; border-left: 1px solid var(--rule); }
+
+.toc-item { margin: 0; }
+.toc-item.depth-0 { margin-bottom: 0.45rem; }
+
+.toc-row { display: grid; grid-template-columns: 1.1rem minmax(0, 1fr); align-items: baseline; }
+
+.toc-toggle { color: var(--dim); font-size: 0.75rem; text-align: center; }
+.toc-toggle:hover { color: var(--link); }
+
+.toc a {
+  display: flex;
+  gap: 0.4rem;
+  align-items: baseline;
+  padding: 0.18rem 0.4rem;
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 0.88rem;
+  line-height: 1.45;
+  text-decoration: none;
+}
+
+.toc-item.depth-0 > .toc-row a { font-weight: 700; color: var(--bright); font-size: 0.95rem; }
+
+.toc a:hover { background: var(--bg); color: var(--bright); }
+
+.toc a.here { background: var(--bg); color: var(--link); box-shadow: inset 2px 0 0 var(--link); }
+
+.toc-title { min-width: 0; overflow-wrap: anywhere; }
+
+.toc-note { margin-left: auto; padding-left: 0.4rem; color: var(--dim); font-size: 0.75rem; font-weight: normal; white-space: nowrap; }
+
+.toc-mark { font-size: 0.7rem; color: var(--dim); }
+.toc-mark.done { color: var(--ok); }
+.toc-mark.doing { color: var(--link); }
+
+/* ---------- sections ---------- */
+
+.section { margin-top: 2.6rem; scroll-margin-top: 1rem; }
+
+.section-title {
+  margin: 0 0 0.3rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--rule);
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--bright);
+}
+
+.section-summary { color: var(--dim); margin: 0.5rem 0 1rem; }
+
+.section-body { display: grid; gap: 0.9rem; }
+
+.card { scroll-margin-top: 1rem; }
+
+/* ---------- agent notes ---------- */
+
+.notes {
+  margin: 0.8rem 0 0;
+  padding: 0.6rem 0.8rem;
+  border: 1px dashed var(--frame);
+  border-radius: 8px;
+  font-size: 0.9rem;
+}
+
+.notes-label { margin-bottom: 0.3rem; color: var(--dim); font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.08em; }
+
+.notes > :last-child { margin-bottom: 0; }
+
+/* ---------- phone: the sidebar is a drawer ---------- */
+
+.phone-bar { display: none; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: minmax(0, 1fr); }
+  .content { padding: 1rem 1rem 4rem; }
+  .phone-bar {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    padding: 0.5rem 1rem;
+    border-bottom: 1px solid var(--rule);
+    background: var(--bg);
+  }
+  .menu { font-size: 1.3rem; line-height: 1; padding: 0.1rem 0.3rem; }
+  .phone-title { font-weight: 600; color: var(--bright); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    width: min(18rem, 85vw);
+    transform: translateX(-100%);
+    transition: transform 160ms ease-out;
+    box-shadow: 0 0 40px rgb(0 0 0 / 0.35);
+  }
+  .drawer-open .sidebar { transform: none; }
+}
 
 /* ---------- cards: text left, image right ---------- */
 
@@ -242,6 +376,20 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 .status { margin-top: 2.5rem; font-size: 0.85rem; }
 
+/* ---------- folds (for modules) ---------- */
+
+.fold-head {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  align-items: baseline;
+  width: 100%;
+  text-align: left;
+}
+
+.mark { color: var(--dim); font-size: 0.9em; }
+
+.fold-head:hover > .mark { color: var(--link); }
+
 /* ---------- motion ---------- */
 
 @keyframes opening {
@@ -268,9 +416,6 @@ button:focus-visible, input:focus-visible, select:focus-visible {
 
 @media (max-width: 760px) {
   html { font-size: 15px; }
-  .page { padding: 0.8rem 1rem 3rem; }
-  .panel > .fold-head { grid-template-columns: 1.5rem minmax(0, 1fr); }
-  .panel-summary { grid-column: 2; }
   .card { padding: 0.9rem 1rem; }
   .card.has-image { grid-template-columns: minmax(0, 1fr); gap: 0.9rem; }
 }
