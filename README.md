@@ -34,13 +34,13 @@ agent 需要、人不需要的细节（参数、路径、命令）写在隐藏�
 
 组长：
 
-1. 把 ez-cognition 放进项目，例如作为 git submodule：`git submodule add <ez-cognition 的仓库地址> ez-cognition`。
+1. 把 ez-cognition 作为 git submodule 放进项目，用公开地址：`git submodule add https://github.com/Pmechano/ez-cognition.git ez-cognition`。不要用本地路径，否则组员拉不下来。
 2. 对你的 agent 说：“读 `ez-cognition/agent-guide.md`，帮我做组长的初始化。”
 3. agent 会读课程材料、写记录、和你一起起草框架，然后打开网页给你看。你同意了才算完成。
 
 组员：
 
-1. 拉取项目（带上 submodule）。
+1. 拉取项目时带上 submodule：`git clone --recurse-submodules <项目地址>`。已经拉过的，运行 `git submodule update --init`。
 2. 对你的 agent 说：“打开 ez-cognition。”
 3. 在网页的“设置”里写上你的名字。
 

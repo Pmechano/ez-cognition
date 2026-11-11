@@ -39,11 +39,12 @@ The page refreshes by itself when a record changes. The page never calls a model
 Do the setup on `main`.
 
 1. Put the original course materials in `docs/`. Examples: the assignment, the rubric, the syllabus, the feedback of the teaching assistant. Do not edit them. If some materials are not in the repo, ask the leader for them.
-2. Run `init`. It creates `cognition-data/` and adds one line to `AGENTS.md`, so that each member's agent finds this guide.
-3. Read all of `docs/`. Then write the record (see "The record"). The content comes only from the course materials, from what the leader tells you, and from the official descriptions of the public datasets, methods and papers that the materials name.
-4. Draft the framework with the leader: propose an answer for each step, and change it until the leader agrees. The group aims for the top band of the rubric. A step can stay without an answer.
-5. Run `check`, then `open`. The setup is done when the leader has read the page and agrees with it.
-6. Commit and push. If `collab-guide.md` applies, send a `framework` message.
+2. Add ez-cognition to the project as a git submodule with its public address, so that the members get it when they clone: `git submodule add https://github.com/Pmechano/ez-cognition.git ez-cognition`. Do not use a local path: the members cannot fetch it.
+3. Run `init`. It creates `cognition-data/` and adds one line to `AGENTS.md`, so that each member's agent finds this guide. Commit that line: if the project ignores `AGENTS.md` in git, put the line in a file that git keeps (for example `README.md`), because the members' agents only see committed files.
+4. Read all of `docs/`. Then write the record (see "The record"). The content comes only from the course materials, from what the leader tells you, and from the official descriptions of the public datasets, methods and papers that the materials name.
+5. Draft the framework with the leader: propose an answer for each step, and change it until the leader agrees. The group aims for the top band of the rubric. A step can stay without an answer.
+6. Run `check`, then `open`. The setup is done when the leader has read the page and agrees with it.
+7. Commit and push, with `cognition-data/` (except `.local/`). Add the Slack channel line to `AGENTS.md` as `collab-guide.md` says. If `collab-guide.md` applies, send a `framework` message.
 
 ## Start of each session
 

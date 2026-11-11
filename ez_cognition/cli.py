@@ -90,8 +90,8 @@ def cmd_init(paths: Paths) -> int:
     if not ignore.is_file():
         write_text(ignore, ".local/\n")
         print("created %s/.gitignore" % DATA_DIR)
-    line = ("This project uses ez-cognition. Before you work, read `%s/agent-guide.md` and follow it."
-            % _plugin_dir(paths))
+    line = ("This project uses ez-cognition. Before you work, read `%s/agent-guide.md` and follow it. "
+            "If that folder is empty, run `git submodule update --init` first." % _plugin_dir(paths))
     agents = paths.root / "AGENTS.md"
     old = agents.read_text(encoding="utf-8") if agents.is_file() else ""
     if ENTRY_MARK not in old:
