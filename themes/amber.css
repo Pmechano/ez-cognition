@@ -1,18 +1,23 @@
-/* Theme: an old amber terminal. Its light partner is paper.css.
+/* Theme: amber on a dark background. Its light partner is paper.css.
  *
- * One hue. Importance shows as brightness: dim for notes, plain for text,
- * bright for the highlight, hot for "needs you". A theme is this one file:
- * it sets the variables that core.css and the modules read.
+ * Amber is the main colour. Body text is a soft warm tone that is easy to
+ * read for a long time; the full amber is for headings and highlights. Each
+ * other colour has one meaning. A theme is this one file: it sets the
+ * variables that core.css and the modules read.
  */
 :root {
   color-scheme: dark;
-  --bg: #0d0a06;      /* phosphor black */
-  --dim: #8f6a2c;     /* notes, labels, marks */
-  --text: #d9a54c;    /* body text: a soft amber, easy on the eyes */
-  --bright: #ffd24d;  /* the highlight */
-  --hot: #ff8a2b;     /* needs the user */
-  --frame: #7a5a22;   /* the lines around a panel */
-  --rule: #33260f;    /* the lines inside a panel */
-  --font: "Cascadia Mono", "Sarasa Mono SC", Consolas, "SF Mono", Menlo, "DejaVu Sans Mono",
-    "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans Mono CJK SC", "Noto Sans CJK SC", monospace;
+  --bg: #100d09;       /* the page */
+  --surface: #1a150e;  /* cards, code, table heads */
+  --text: #e6d6bc;     /* body text */
+  --dim: #a08559;      /* notes, labels, marks */
+  --bright: #ffcf6e;   /* headings and highlights */
+  --link: #f2a93b;     /* links, focus, "in progress" */
+  --hot: #ff7a45;      /* needs the user */
+  --ok: #9fcf73;       /* done */
+  --frame: #4a3a20;    /* stronger lines */
+  --rule: #2c2416;     /* lines */
+  --font-text: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei",
+    "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
+  --font-mono: "Cascadia Mono", "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
 }

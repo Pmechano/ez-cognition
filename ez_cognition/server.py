@@ -24,12 +24,12 @@ import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import Any, Dict, List, Optional
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from . import __version__
 from .check import check_task, module_dirs
 from .home import Home, key, side, to_shared, distro
-from .paths import ID_RE, PLUGIN, Paths, load_json, read_json, write_json
+from .paths import ID_RE, MEDIA_RE, PLUGIN, Paths, load_json, read_json, write_json
 
 APP = "ez-cognition"
 API = 2  # 2: one server for all projects
@@ -41,7 +41,14 @@ MIME = {
     ".json": "application/json; charset=utf-8",
     ".svg": "image/svg+xml",
     ".woff2": "font/woff2",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
 }
+# An image of a record cannot run script, even when it is opened alone.
+MEDIA_POLICY = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
 STATIC = ("core", "modules", "themes", "locales")
 MAX_BODY = 256 * 1024
 IDLE_SECONDS = 60
@@ -248,7 +255,20 @@ class App:
             task = load_json(file)
         except ValueError as err:
             return {"ok": False, "error": "%s: %s" % (file.name, err)}
-        return {"ok": isinstance(task, dict), "task": task, "problems": check_task(task), "file": file.name}
+        return {"ok": isinstance(task, dict), "task": task, "problems": check_task(task, project.paths.data),
+                "file": file.name}
+
+    def media(self, pid: str, relative: str) -> Optional[Path]:
+        """An image file of a project, or None."""
+        project = self.project(pid)
+        if project is None or not MEDIA_RE.match(relative):
+            return None
+        file = project.paths.data.joinpath(*relative.split("/"))
+        try:
+            file.resolve().relative_to((project.paths.data / "media").resolve())
+        except (OSError, ValueError):
+            return None
+        return file if file.is_file() else None
 
     # ---------- life ----------
 
@@ -324,9 +344,11 @@ class Handler(BaseHTTPRequestHandler):
 
     # ---------- replies ----------
 
-    def _send(self, code: int, body: bytes, kind: str) -> None:
+    def _send(self, code: int, body: bytes, kind: str, policy: Optional[str] = None) -> None:
         self.send_response(code)
         self.send_header("Content-Type", kind)
+        if policy:
+            self.send_header("Content-Security-Policy", policy)
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
         self.send_header("X-Content-Type-Options", "nosniff")
@@ -368,7 +390,19 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"user": self.app.user(project), "view": view if isinstance(view, dict) else {}})
         if path == "/api/events":
             return self._events()
+        if path.startswith("/files/"):
+            return self._media(path)
         return self._static(path.lstrip("/"))
+
+    def _media(self, path: str) -> None:
+        parts = [unquote(p) for p in path.split("/")[2:]]
+        if len(parts) < 2:
+            return self._no(404, "not found")
+        file = self.app.media(parts[0], "/".join(parts[1:]))
+        kind = MIME.get(file.suffix.lower()) if file else None
+        if file is None or kind is None:
+            return self._no(404, "not found")
+        self._send(200, file.read_bytes(), kind, MEDIA_POLICY)
 
     def _static(self, relative: str) -> None:
         parts = relative.split("/")

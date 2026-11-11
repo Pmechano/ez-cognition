@@ -1,3 +1,4 @@
+import shutil
 import contextlib
 import io
 import unittest
@@ -46,7 +47,7 @@ class InitTest(unittest.TestCase):
     def test_init_is_repeatable_and_writes_lf(self):
         folder, paths = project({})
         with folder:
-            paths.data.rmdir()
+            shutil.rmtree(paths.data)
             (paths.root / "AGENTS.md").write_bytes(b"# Notes\r\n\r\nKeep this.\r\n")
             code, out = run("--root", str(paths.root), "init")
             self.assertEqual(code, 0)
@@ -95,7 +96,7 @@ class CheckCommandTest(unittest.TestCase):
     def test_open_without_the_data_directory(self):
         folder, paths = project({})
         with folder:
-            paths.data.rmdir()
+            shutil.rmtree(paths.data)
             code, out = run("--root", str(paths.root), "open")
             self.assertEqual(code, 1)
             self.assertIn("does not exist", out)

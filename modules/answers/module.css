@@ -1,5 +1,13 @@
-.directions-label { margin-top: 0.6rem; }
+.directions { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
 
-.direction { margin-bottom: 0.35rem; }
+.direction {
+  padding: 0.55rem 0.8rem;
+  border: 1px solid var(--rule);
+  border-radius: 8px;
+}
 
-.direction-body { padding-left: 2ch; overflow-wrap: anywhere; }
+.direction-head { display: flex; gap: 0.6rem; align-items: center; }
+
+.direction-head .me { color: var(--link); }
+
+.direction-found { margin-top: 0.2rem; }

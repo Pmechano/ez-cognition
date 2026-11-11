@@ -1,0 +1,17 @@
+.sub-table td { vertical-align: top; }
+
+.sub-due { white-space: nowrap; font-family: var(--font-mono); font-size: 0.92em; }
+
+.sub-what { width: 100%; }
+
+.sub-table tr.done .sub-what, .sub-table tr.done .sub-due { color: var(--dim); }
+
+.sub-state { white-space: nowrap; }
+
+.sub-items { margin: 0.8rem 0 0; padding-left: 1.2rem; }
+
+.sub-items li { margin: 0.2rem 0; }
+
+@media (max-width: 760px) {
+  .sub-due { white-space: normal; }
+}

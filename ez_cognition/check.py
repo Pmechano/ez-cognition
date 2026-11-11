@@ -16,9 +16,9 @@ from __future__ import annotations
 import importlib.util
 import re
 from pathlib import Path
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
-from .paths import ID_RE, PLUGIN, Paths, load_json, read_json
+from .paths import ID_RE, MEDIA_RE, PLUGIN, Paths, load_json, read_json
 
 TYPES = {
     "string": (str,),
@@ -112,8 +112,41 @@ def _schemas() -> List[Tuple[str, Dict[str, Any], Any]]:
     return found
 
 
-def check_task(task: Any) -> List[str]:
-    """The problems in one record. An empty list means that it is correct."""
+IMAGE_MD = re.compile(r"!\[[^\]]*\]\(([^)\s]+)\)")
+
+
+def images(value: Any, where: str = "") -> List[Tuple[str, str]]:
+    """(where, path) for each image in a record: an `image.src`, or a Markdown image in a text."""
+    found: List[Tuple[str, str]] = []
+    if isinstance(value, dict):
+        for key, item in value.items():
+            if key == "image" and isinstance(item, dict) and isinstance(item.get("src"), str):
+                found.append((_at(_at(where, key), "src"), item["src"]))
+            else:
+                found.extend(images(item, _at(where, key)))
+    elif isinstance(value, list):
+        for index, item in enumerate(value):
+            found.extend(images(item, _at(where, index)))
+    elif isinstance(value, str):
+        found.extend((where, path) for path in IMAGE_MD.findall(value))
+    return found
+
+
+def check_media(task: Any, data: Path) -> List[str]:
+    problems = []
+    for where, path in images(task):
+        if not MEDIA_RE.match(path):
+            problems.append(_say(where, '"%s": an image must be a file in media/, for example media/example.png' % path))
+        elif not (data / path).is_file():
+            problems.append(_say(where, '"%s": this file does not exist in %s/' % (path, data.name)))
+    return problems
+
+
+def check_task(task: Any, data: Optional[Path] = None) -> List[str]:
+    """The problems in one record. An empty list means that it is correct.
+
+    With `data` (the cognition-data folder), the images are checked too.
+    """
     if not isinstance(task, dict):
         return ["the record must be an object"]
     problems: List[str] = []
@@ -131,6 +164,8 @@ def check_task(task: Any) -> List[str]:
     for key in task:
         if key not in known:
             problems.append("%s: no installed module uses this key" % key)
+    if data is not None:
+        problems.extend(check_media(task, data))
     return problems
 
 
@@ -145,7 +180,7 @@ def check_project(paths: Paths) -> Dict[str, List[str]]:
         if not ID_RE.match(file.stem):
             problems.append("the file name must be lowercase ASCII letters, digits and '-', for example talk.json")
         try:
-            problems.extend(check_task(load_json(file)))
+            problems.extend(check_task(load_json(file), paths.data))
         except ValueError as err:
             problems.append(str(err))
         report[file.name] = problems

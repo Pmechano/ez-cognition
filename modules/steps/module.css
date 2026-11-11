@@ -1,58 +1,74 @@
-.panel-steps > .fold-body { padding-top: 0; padding-bottom: 0; }
+.panel-steps > .fold-body { padding-top: 0.2rem; }
 
-.step { border-top: 1px solid var(--rule); }
-.step:first-child { border-top: 0; }
+.step { border-bottom: 1px solid var(--rule); }
 
-/* The closed row: the step on the left, our answer on the right. The two
- * columns are the same as in the panel head and in the open row. */
+/* The closed row: the step, our answer in one line, the state. */
 .step > .fold-head {
-  grid-template-columns: 4ch minmax(0, 5fr) minmax(0, 7fr) 3ch;
-  gap: 0 2ch;
-  padding: 0.45rem 0;
+  grid-template-columns: 1.5rem minmax(0, 2fr) minmax(0, 3fr) auto;
+  gap: 0 1.2rem;
+  padding: 0.65rem 0;
   overflow-wrap: anywhere;
+}
+
+.step-title { font-weight: 600; color: var(--text); }
+
+.step-no {
+  display: inline-block;
+  min-width: 1.6rem;
+  color: var(--dim);
+  font-family: var(--font-mono);
+  font-size: 0.85em;
 }
 
 .step > .fold-head:hover .step-title { color: var(--bright); }
 
 .step[data-open="true"] > .fold-head .step-title { color: var(--bright); }
 
+.step-line { color: var(--dim); }
+
 /* The open row shows the full answer, so its head does not say it again. */
 .step[data-open="true"] > .fold-head .step-line { visibility: hidden; }
 
-.step-flag { text-align: right; white-space: pre; }
+.step-flag { display: flex; gap: 0.5rem; align-items: center; justify-content: flex-end; white-space: nowrap; }
 
-.step > .fold-body { padding: 0.1rem 0 0.7rem; }
+.step > .fold-body { padding: 0 0 1rem 1.5rem; }
 
-.step-cols {
-  display: grid;
-  grid-template-columns: 4ch minmax(0, 5fr) minmax(0, 7fr) 3ch;
-  gap: 0 2ch;
+.step-ask {
+  padding: 0.2rem 0 0.2rem 1rem;
+  border-left: 3px solid var(--frame);
 }
 
-.step-ask { grid-column: 2; }
-.step-ours { grid-column: 3; }
+.step-ask > .label:first-child { margin-top: 0; }
 
-.step-ask, .step-ours { overflow-wrap: anywhere; }
+.step-ask > :last-child { margin-bottom: 0; }
 
-.part + .part { margin-top: 0.6rem; }
+.step-used { margin-top: 0.4rem; font-size: 0.9rem; }
+
+.step-ours > .part { margin-top: 0.4rem; }
 
 .step-foot {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 2ch;
-  margin-top: 0.35rem;
-  padding-left: calc(4ch + 2ch);
+  gap: 0 1rem;
+  align-items: center;
+  margin-top: 0.8rem;
 }
 
-.step-ack { color: var(--dim); white-space: pre; }
+.step-ack {
+  padding: 0.1rem 0.8rem;
+  border: 1px solid var(--frame);
+  border-radius: 999px;
+  color: var(--dim);
+  font-size: 0.88rem;
+}
+
 .step-ack:hover { color: var(--bright); }
+.step-ack.on { border-color: var(--ok); color: var(--ok); }
 
 @media (max-width: 760px) {
-  .step > .fold-head { grid-template-columns: 4ch minmax(0, 1fr) 3ch; }
+  .step > .fold-head { grid-template-columns: 1.5rem minmax(0, 1fr) auto; }
   .step-line { grid-column: 2; }
   .step[data-open="true"] > .fold-head .step-line { display: none; }
   .step-flag { grid-column: 3; grid-row: 1; }
-  .step-cols { grid-template-columns: 4ch minmax(0, 1fr); }
-  .step-ask, .step-ours { grid-column: 2; }
-  .step-ours { margin-top: 0.5rem; }
+  .step > .fold-body { padding-left: 0; }
 }

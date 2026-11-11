@@ -14,6 +14,9 @@ PLUGIN = Path(__file__).resolve().parent.parent
 # Task ids, step ids, direction ids and user names. Branch names use them.
 ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,29}$")
 
+# Images of a record: files in cognition-data/media/, written as "media/<file>".
+MEDIA_RE = re.compile(r"^media/(?!.*\.\.)[\w\-./]+\.(png|jpe?g|gif|webp|svg)$", re.IGNORECASE)
+
 
 class Paths:
     def __init__(self, root) -> None:

@@ -1,19 +1,22 @@
 /* Theme: amber ink on warm paper. The light partner of amber.css.
  *
- * The same rules as the dark theme. One hue. Importance shows as contrast:
- * dim for notes, plain for text, bright (the darkest ink) for the highlight,
- * hot for "needs you". The page takes this theme when the user chooses it,
- * or when the user chooses "auto" and the system is light.
+ * The same rules as the dark theme: amber is the main colour, and each
+ * other colour has one meaning. The page takes this theme when the user
+ * chooses it, or when the user chooses "auto" and the system is light.
  */
 :root {
   color-scheme: light;
-  --bg: #f6f0e2;      /* warm paper */
-  --dim: #86683c;     /* notes, labels, marks */
-  --text: #4f3816;    /* body text: brown ink */
-  --bright: #2a1b05;  /* the highlight: the darkest ink */
-  --hot: #b54708;     /* needs the user */
-  --frame: #a78a5e;   /* the lines around a panel */
-  --rule: #e3d5b8;    /* the lines inside a panel */
-  --font: "Cascadia Mono", "Sarasa Mono SC", Consolas, "SF Mono", Menlo, "DejaVu Sans Mono",
-    "Microsoft YaHei UI", "Microsoft YaHei", "PingFang SC", "Noto Sans Mono CJK SC", "Noto Sans CJK SC", monospace;
+  --bg: #fbf7ef;       /* the page */
+  --surface: #f3ecdf;  /* cards, code, table heads */
+  --text: #2e2416;     /* body text */
+  --dim: #7a6240;      /* notes, labels, marks */
+  --bright: #1d1407;   /* headings and highlights: the darkest ink */
+  --link: #a65a00;     /* links, focus, "in progress" */
+  --hot: #b4440d;      /* needs the user */
+  --ok: #3d7a24;       /* done */
+  --frame: #d4c2a0;    /* stronger lines */
+  --rule: #e6dac4;     /* lines */
+  --font-text: system-ui, -apple-system, "Segoe UI", "PingFang SC", "Microsoft YaHei UI", "Microsoft YaHei",
+    "Noto Sans CJK SC", "Noto Sans SC", sans-serif;
+  --font-mono: "Cascadia Mono", "SF Mono", Menlo, Consolas, "DejaVu Sans Mono", monospace;
 }

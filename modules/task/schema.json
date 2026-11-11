@@ -2,35 +2,30 @@
   "properties": {
     "task": {
       "type": "object",
-      "required": ["summary", "questions"],
+      "required": ["summary", "cards"],
       "additionalProperties": false,
       "properties": {
         "summary": { "type": "string", "minLength": 1 },
-        "questions": {
+        "cards": {
           "type": "array",
           "minItems": 1,
           "items": {
             "type": "object",
-            "required": ["ask", "answer"],
+            "required": ["title", "text"],
             "additionalProperties": false,
             "properties": {
-              "ask": { "type": "string", "minLength": 1 },
-              "answer": { "type": "string", "minLength": 1 },
-              "detail": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+              "title": { "type": "string", "minLength": 1 },
+              "text": { "type": "string", "minLength": 1 },
+              "image": {
+                "type": "object",
+                "required": ["src", "alt"],
+                "additionalProperties": false,
+                "properties": {
+                  "src": { "type": "string", "minLength": 1 },
+                  "alt": { "type": "string", "minLength": 1 }
+                }
+              },
               "from": { "type": "string", "minLength": 1 }
-            }
-          }
-        },
-        "terms": {
-          "type": "array",
-          "minItems": 1,
-          "items": {
-            "type": "object",
-            "required": ["term", "means"],
-            "additionalProperties": false,
-            "properties": {
-              "term": { "type": "string", "minLength": 1 },
-              "means": { "type": "string", "minLength": 1 }
             }
           }
         }

@@ -1,55 +1,69 @@
-// Step part: how the group answers each step.
-// Data: task.answers = { "<step id>": { answer, detail?: [..], directions?: [..] } }
-//       direction = { id, who, explores, found? }
+// Step part: how the group does each step, and how far it is.
+// Data: record.answers = { "<step id>": {
+//   answer,                 // one or two sentences; the closed row shows the first line (Markdown)
+//   detail?,                // more: the reasons, the settings, what is not decided (Markdown)
+//   image?: { src, alt },   // shown beside the text
+//   state?,                 // "todo" | "doing" | "done"
+//   directions?: [{ id, who, explores, found?, state? }]
+// } }
 //
 // `answer` and `detail` are the framework: the shared answer that the leader
-// drafts. `directions` are what members explore freely inside it. A direction
-// is not an owned part of the work, so this part shows no owner and no counts.
+// drafts. `directions` are what members explore inside it, and who explores
+// them. The page shows who does what, but it never counts or compares work.
 
-import { registry, h, rich, points, t, user } from "/core/core.js";
+import { registry, h, rich, card, t, user } from "/core/core.js";
 
 const of = (step, task) => task.answers?.[step.id] ?? null;
+
+const STATES = {
+  todo: { text: () => t("answers.todo", "未开始"), kind: "" },
+  doing: { text: () => t("answers.doing", "进行中"), kind: "warn" },
+  done: { text: () => t("answers.done", "已完成"), kind: "ok" },
+};
+
+function badge(value) {
+  const known = STATES[value];
+  return known ? h("span", { class: `badge ${known.kind}` }, known.text()) : null;
+}
 
 registry.add("step-part", {
   id: "answers",
   order: 10,
   title: () => t("answers.title", "我们的方案"),
   data: of,
-  summary: (step, task) => of(step, task)?.answer ?? null,
+  summary: (step, task) => of(step, task)?.answer?.split("\n")[0] ?? null,
+  badge: (step, task) => {
+    const known = STATES[of(step, task)?.state];
+    return known ? { text: known.text(), kind: known.kind } : null;
+  },
   render(step, task, el) {
     const mine = of(step, task);
-    el.append(h("div", { class: "label" }, "// ", t("answers.title", "我们的方案")));
+    el.append(h("div", { class: "label" }, t("answers.title", "我们的方案")));
     if (!mine) {
       el.append(h("p", { class: "dim" }, t("answers.none", "还没有方案。组长起草框架后，它会出现在这里。")));
       return;
     }
-    el.append(h("p", { class: "bright" }, rich(mine.answer)));
-    if (mine.detail?.length) el.append(points(mine.detail));
+    const text = mine.detail ? `${mine.answer}\n\n${mine.detail}` : mine.answer;
+    el.append(card({ text, image: mine.image }, "answer-card"));
 
     const directions = mine.directions ?? [];
     if (!directions.length) return;
     const me = user().name;
-    el.append(h("div", { class: "label directions-label" }, "// ", t("answers.directions", "正在探索的方向")));
-    for (const direction of directions) {
-      el.append(
-        h(
-          "div",
-          { class: "direction" },
+    el.append(
+      h("div", { class: "label" }, t("answers.directions", "谁在探索什么")),
+      h(
+        "ul",
+        { class: "directions", "data-scope": "" },
+        directions.map((d) =>
           h(
-            "div",
-            null,
-            h("span", { class: me && direction.who === me ? "bright" : null }, direction.who),
-            h("span", { class: "dim" }, ` / ${direction.id}`),
-          ),
-          h("div", { class: "direction-body" }, h("span", { class: "dim" }, t("answers.explores", "探索：")), rich(direction.explores)),
-          h(
-            "div",
-            { class: "direction-body" },
-            h("span", { class: "dim" }, t("answers.found", "发现：")),
-            direction.found ? rich(direction.found) : h("span", { class: "dim" }, t("answers.nofound", "还没有")),
+            "li",
+            { class: "direction" },
+            h("div", { class: "direction-head" }, h("strong", { class: me && d.who === me ? "me" : null }, d.who), badge(d.state)),
+            h("div", null, rich(d.explores)),
+            d.found && h("div", { class: "direction-found" }, h("span", { class: "dim" }, t("answers.found", "发现："), " "), rich(d.found)),
           ),
         ),
-      );
-    }
+      ),
+    );
   },
 });

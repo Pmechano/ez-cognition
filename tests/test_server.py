@@ -156,6 +156,22 @@ class ReadTest(ServerCase):
         self.assertFalse(self.get("/api/task?project=%s&id=../talk" % self.pid)[1]["ok"])
         self.assertFalse(self.get("/api/task?project=none&id=talk")[1]["ok"])
 
+    def test_media(self):
+        self.start()
+        code, body = self.get("/files/%s/media/robot.png" % self.pid)
+        self.assertEqual((code, body[:4]), (200, b"\x89PNG"))
+        link = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        link.request("GET", "/files/%s/media/robot.png" % self.pid)
+        reply = link.getresponse()
+        reply.read()
+        link.close()
+        self.assertIn("sandbox", reply.getheader("Content-Security-Policy"))
+        (self.paths.data / "media" / "x.txt").write_text("x", encoding="utf-8")
+        for path in ("/files/%s/media/none.png" % self.pid, "/files/%s/talk.json" % self.pid,
+                     "/files/%s/media/x.txt" % self.pid, "/files/%s/media/../talk.json" % self.pid,
+                     "/files/%s/media/%%2e%%2e/talk.json" % self.pid, "/files/none/media/robot.png", "/files/"):
+            self.assertEqual(self.get(path)[0], 404, path)
+
     def test_another_host_is_refused(self):
         self.start()
         self.assertEqual(self.get("/api/manifest", {"Host": "evil.example:%d" % self.port})[0], 403)

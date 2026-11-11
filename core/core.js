@@ -12,9 +12,15 @@
 // what it adds:
 //
 //   registry.add("panel", { id, order, title(task), summary(task), render(task, el), when(task) })
+//   registry.add("annotator", { id, apply(root, record) })  // marks text in a part of the page
 //
 // A module can define its own kind and let other modules add to it. The
 // steps module does this with "step-part".
+//
+// Text in a record is Markdown (see md.js). Images live in the project's
+// cognition-data/media/ folder and are written as "media/<file>".
+
+import { markdown, inline as mdInline, figure as mdFigure } from "/core/md.js";
 
 // ---------- registry ----------
 
@@ -51,18 +57,93 @@ export function h(tag, attrs, ...kids) {
   return el;
 }
 
-// Text from a record. `like this` becomes code. Nothing else is markup.
+// ---------- text from a record ----------
+
+const MEDIA = /^media\/(?!.*\.\.)[\w\-./]+\.(png|jpe?g|gif|webp|svg)$/i;
+
+function imageURL(src) {
+  if (!MEDIA.test(String(src)) || !app.projectId) return null;
+  return `/files/${encodeURIComponent(app.projectId)}/${src.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+// One line of Markdown: bold, italic, code, links, math.
 export function rich(text) {
-  const out = document.createDocumentFragment();
-  for (const part of String(text ?? "").split(/(`[^`]+`)/)) {
-    if (part.length > 2 && part.startsWith("`") && part.endsWith("`")) out.append(h("code", null, part.slice(1, -1)));
-    else if (part) out.append(part);
-  }
-  return out;
+  return mdInline(text, { image: imageURL });
+}
+
+// Blocks of Markdown: paragraphs, lists, tables, headings, images.
+export function md(text) {
+  return markdown(text, { image: imageURL });
+}
+
+// An image from a record: { src: "media/x.png", alt }.
+export function picture(image) {
+  return image?.src ? mdFigure(image.src, image.alt ?? "", { image: imageURL }) : null;
 }
 
 export function points(list) {
   return h("ul", { class: "points" }, (list ?? []).map((line) => h("li", null, rich(line))));
+}
+
+// A card: a title, Markdown text, and an image beside the text (below it on
+// a narrow screen). A card is one part of the page for the annotators.
+export function card({ title, text, image }, cls = "") {
+  const pic = picture(image);
+  return h(
+    "article",
+    { class: `card${pic ? " has-image" : ""}${cls ? " " + cls : ""}`, "data-scope": "" },
+    h("div", { class: "card-text" }, title && h("h3", { class: "card-title" }, rich(title)), md(text)),
+    pic && h("div", { class: "card-image" }, pic),
+  );
+}
+
+// Run the annotators on each new part of the page, then render the math.
+const annotated = new WeakSet();
+
+export function finish(root) {
+  if (!root) return;
+  const scopes = [...root.querySelectorAll("[data-scope]")];
+  if (root.matches?.("[data-scope]")) scopes.unshift(root);
+  for (const scope of scopes) {
+    if (annotated.has(scope)) continue;
+    annotated.add(scope);
+    for (const annotator of registry.list("annotator")) {
+      try {
+        annotator.apply(scope, app.task);
+      } catch {
+        // An annotator must not break the page.
+      }
+    }
+  }
+  typeset(root);
+}
+
+// Math: Temml turns TeX into MathML, which every current browser shows. It
+// loads only when a page has math.
+let temml = null;
+
+async function typeset(root) {
+  const nodes = [...root.querySelectorAll(".math:not([data-done])")];
+  if (!nodes.length) return;
+  try {
+    temml ??= new Promise((done, fail) => {
+      document.head.append(h("link", { rel: "stylesheet", href: "/core/vendor/temml/Temml-Local.css" }));
+      document.head.append(h("script", { src: "/core/vendor/temml/temml.min.js", onload: () => done(window.temml), onerror: fail }));
+    });
+    const lib = await temml;
+    for (const node of nodes) {
+      node.dataset.done = "1";
+      const tex = node.dataset.tex;
+      try {
+        node.replaceChildren();
+        lib.render(tex, node, { displayMode: node.classList.contains("math-block"), throwOnError: false });
+      } catch {
+        node.textContent = tex;
+      }
+    }
+  } catch {
+    // Without the library, the TeX stays as text.
+  }
 }
 
 // A short signature of a value. It changes when the value changes.
@@ -170,10 +251,11 @@ export function fold({ key, open = false, cls = "", head, body }) {
   function apply(moved) {
     el.dataset.open = String(isOpen);
     button.setAttribute("aria-expanded", String(isOpen));
-    mark.textContent = isOpen ? "[-]" : "[+]";
+    mark.textContent = isOpen ? "▾" : "▸";
     if (isOpen && !filled) {
       filled = true;
       body(inside);
+      finish(inside);
     }
     inside.hidden = !isOpen;
     if (moved && isOpen) {
@@ -279,7 +361,7 @@ function panels() {
           open: panel.open ?? true,
           cls: `panel panel-${panel.id}`,
           head: [
-            h("span", { class: "panel-title" }, "// ", title),
+            h("span", { class: "panel-title" }, title),
             h("span", { class: "panel-summary" }, summary ? rich(summary) : ""),
           ],
           body(el) {
@@ -318,13 +400,12 @@ function body() {
     );
   }
   if (!app.task) return h("main", null, trouble());
-  const sources = Array.isArray(app.task.sources) ? app.task.sources : [];
+  // The sources stay in the record for the agents. The page does not show them.
   return h(
     "main",
     null,
     h("h1", null, rich(app.task.title)),
-    h("p", { class: "goal" }, rich(app.task.goal)),
-    sources.length > 0 && h("p", { class: "from" }, t("core.sources", "来源："), sources.join("  ")),
+    h("div", { class: "goal", "data-scope": "" }, md(app.task.goal)),
     trouble(),
     panels(),
   );
@@ -341,7 +422,9 @@ function status() {
 function render() {
   const name = project()?.name;
   document.title = [app.task?.title, name, "ez-cognition"].filter(Boolean).join(" · ");
-  document.getElementById("app").replaceChildren(...[...top(), body(), status()].filter(Boolean));
+  const root = document.getElementById("app");
+  root.replaceChildren(...[...top(), body(), status()].filter(Boolean));
+  finish(root);
 }
 
 // ---------- data ----------

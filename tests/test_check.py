@@ -1,3 +1,4 @@
+import shutil
 import json
 import unittest
 from unittest import mock
@@ -108,29 +109,52 @@ class CheckTaskTest(unittest.TestCase):
 class ModuleRulesTest(unittest.TestCase):
     def test_deliverables(self):
         record = task()
-        items = record["project"]["deliverables"]
+        items = record["submit"]["deliverables"]
         items.append(dict(items[0]))
         items[1]["uses"] = ["report", "none"]
         self.assertEqual(check_task(record), [
-            'project.deliverables[1].uses: a deliverable cannot use itself',
-            'project.deliverables[1].uses: "none" is not a deliverable id',
-            'project.deliverables[2].id: "talk" is used by an earlier deliverable',
+            'submit.deliverables[1].uses: a deliverable cannot use itself',
+            'submit.deliverables[1].uses: "none" is not a deliverable id',
+            'submit.deliverables[2].id: "talk" is used by an earlier deliverable',
         ])
 
     def test_a_step_for_an_unknown_deliverable(self):
         record = task()
         record["steps"][1]["for"] = ["poster"]
-        self.assertEqual(check_task(record), ['steps[1].for: "poster" is not an id in project.deliverables'])
-        del record["project"]
+        self.assertEqual(check_task(record), ['steps[1].for: "poster" is not an id in submit.deliverables'])
+        del record["submit"]
         self.assertEqual(check_task(record), [
-            'steps[0].for: "talk" is not an id in project.deliverables',
-            'steps[1].for: "poster" is not an id in project.deliverables',
+            'steps[0].for: "talk" is not an id in submit.deliverables',
+            'steps[1].for: "poster" is not an id in submit.deliverables',
         ])
 
     def test_task_needs_questions(self):
         record = task()
         record["task"] = {"summary": "x", "questions": []}
         self.assertTrue(check_task(record))
+
+
+class MediaTest(unittest.TestCase):
+    def test_images_are_found(self):
+        record = task()
+        record["task"]["cards"][0]["text"] = "See ![a plot](media/plot.svg) and ![b](https://x.example/b.png)."
+        self.assertEqual(check.images(record), [
+            ("task.cards[0].text", "media/plot.svg"),
+            ("task.cards[0].text", "https://x.example/b.png"),
+            ("task.cards[1].image.src", "media/robot.png"),
+        ])
+
+    def test_media_problems(self):
+        folder, paths = project()
+        self.addCleanup(folder.cleanup)
+        record = task()
+        self.assertEqual(check_task(record, paths.data), [])
+        record["task"]["cards"][1]["image"]["src"] = "media/none.png"
+        record["answers"]["risk"]["detail"] = "![x](../secret.png) ![y](media/a/../../x.png)"
+        problems = check_task(record, paths.data)
+        self.assertEqual(len(problems), 3)
+        self.assertIn("does not exist", problems[2] if "none" in problems[2] else " ".join(problems))
+        self.assertTrue(all("media" in p for p in problems))
 
 
 class CheckProjectTest(unittest.TestCase):
@@ -143,7 +167,7 @@ class CheckProjectTest(unittest.TestCase):
         folder, paths = project()
         with folder:
             (paths.data / "talk.json").unlink()
-            paths.data.rmdir()
+            shutil.rmtree(paths.data)
             self.assertEqual(list(check_project(paths)), ["cognition-data"])
 
     def test_file_name_and_json(self):
