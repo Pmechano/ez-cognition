@@ -38,7 +38,9 @@ def spawn(home: Home) -> None:
     home.dir.mkdir(parents=True, exist_ok=True)
     argv = [sys.executable, str(PLUGIN / "ezc.py"), "serve"]
     with open(home.log, "ab") as log:
-        common = dict(stdin=subprocess.DEVNULL, stdout=log, stderr=log, cwd=str(PLUGIN), close_fds=True)
+        # Not the plugin folder: a running server would lock it, and an update of
+        # a copied plugin could not replace it.
+        common = dict(stdin=subprocess.DEVNULL, stdout=log, stderr=log, cwd=str(home.dir), close_fds=True)
         if os.name != "nt":
             subprocess.Popen(argv, start_new_session=True, **common)
             return
