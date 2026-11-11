@@ -162,6 +162,7 @@ All keys except `title` and `goal` are optional. `from` is optional on cards, te
 `task.cards` is a faithful Chinese translation-summary of the course's own task description. A member reads it instead of the original.
 
 - Take only the parts of the source that say what the work is: for example the overview, the core task, the parts or roadmap, the data, the evaluation. The parts about deliverables, formats, deadlines and grading go to `submit`, not here.
+- The source is the description of the task that the group actually does. When the course gives a fixed task, it is that description. When the group chose or proposed its own topic, it is the course's general requirement for all projects, then the group's proposal, then the feedback on the proposal, in this order. Leave out example topics that the group did not choose.
 - Follow the source's own order. One card for each part. The card title is the source's heading in Chinese, with its number.
 - Keep every point of the source, in the same order. A list in the source stays a list; a label in the source (for example "Core Task", "Key Concepts") stays a bold label. Summarize by saying each point in fewer words, not by dropping points.
 - Do not move points from other parts into a card, and do not add your own comments or conclusions to these cards.
