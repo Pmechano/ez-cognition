@@ -54,7 +54,8 @@ MAX_BODY = 256 * 1024
 IDLE_SECONDS = 60
 # The same port on every computer, so that people and agents know where the
 # page is. The system can refuse it; then the server takes one of the next.
-DEFAULT_PORT = 27180
+DEFAULT_PORT = 22267
+PORT_ENV = "EZC_PORT"  # development and tests only: another default port
 BEAT = 3.0    # seconds between two writes of server.json
 FRESH = 15.0  # a server.json older than this belongs to a server that stopped
 LOOK_DEFAULTS = {"theme": "auto", "motion": True, "language": "zh"}
@@ -502,7 +503,7 @@ def bind(port: Optional[int] = None, home: Optional[Home] = None) -> Optional[Se
     The system can refuse a whole range of ports (Windows reserves ranges for
     Hyper-V and WSL). The last candidate is 0: a port that the system chooses.
     """
-    first = DEFAULT_PORT if port is None else port
+    first = (int(os.environ.get(PORT_ENV) or DEFAULT_PORT)) if port is None else port
     last_error: Optional[OSError] = None
     for candidate in ([0] if port == 0 else [*range(first, first + 20), 0]):
         try:

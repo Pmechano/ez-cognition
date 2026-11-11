@@ -28,7 +28,7 @@ python <plugin>/ezc.py stop
 - `init` is for the leader's setup.
 - `stop` stops the server now, for all projects. Usually you do not need it: the server stops by itself approximately one minute after the user closes the page.
 
-One server and one page show all the projects on the computer. Projects in WSL are included. The address is `http://127.0.0.1:27180/`. If the system refuses this port, the server uses one of the next ports, and `open` prints it. Do not start a server in another way.
+One server and one page show all the projects on the computer. Projects in WSL are included. The address is `http://127.0.0.1:22267/`. If the system refuses this port, the server uses one of the next ports, and `open` prints it. Do not start a server in another way.
 
 The page refreshes by itself when a record changes. The page never calls a model. When the user has a question about the page, the user asks you.
 

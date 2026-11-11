@@ -241,6 +241,17 @@ class LifeTest(ServerCase):
         self.addCleanup(httpd.server_close)
         self.assertGreater(httpd.server_address[1], 0)
 
+    def test_the_default_port_and_its_override(self):
+        self.assertEqual(server.DEFAULT_PORT, 22267)
+        free = socket.socket()
+        free.bind(("127.0.0.1", 0))
+        port = free.getsockname()[1]
+        free.close()
+        with mock.patch.dict(os.environ, {server.PORT_ENV: str(port)}):
+            other = bind()
+        self.addCleanup(other.server_close)
+        self.assertEqual(other.server_address[1], port)
+
     def test_bind_when_a_server_runs(self):
         self.start()
         with mock.patch.object(server, "DEFAULT_PORT", self.port):
@@ -379,16 +390,16 @@ class OpenTest(unittest.TestCase):
         self.assertEqual(launch.version_key("x"), ())
 
     def test_open_uses_the_running_server(self):
-        info = {"port": 27180, "version": launch.__version__, "side": side(), "pages": 1, "reach": True}
+        info = {"port": 22267, "version": launch.__version__, "side": side(), "pages": 1, "reach": True}
         with mock.patch.object(launch, "running", return_value=info), mock.patch.object(launch, "start") as start:
             url, what = launch.open_page(self.paths, self.home)
         start.assert_not_called()
-        self.assertEqual(url, "http://127.0.0.1:27180/")
+        self.assertEqual(url, "http://127.0.0.1:22267/")
         self.assertIn("already open", what)
         self.assertEqual(len(self.home.registry()["projects"]), 1)
 
     def test_open_replaces_an_older_server(self):
-        old = {"port": 27180, "version": "0.1.9", "side": side(), "pages": 0, "reach": True}
+        old = {"port": 22267, "version": "0.1.9", "side": side(), "pages": 0, "reach": True}
         new = {"port": 27181, "version": launch.__version__, "side": side(), "pages": 0, "reach": True}
         with mock.patch.object(launch, "running", return_value=old), \
                 mock.patch.object(launch, "stop", return_value=True) as stop, \
@@ -398,13 +409,13 @@ class OpenTest(unittest.TestCase):
         self.assertEqual(url, "http://127.0.0.1:27181/")
 
     def test_open_tells_where_the_server_runs(self):
-        info = {"port": 27180, "version": launch.__version__, "side": "elsewhere", "pages": 0, "reach": False}
+        info = {"port": 22267, "version": launch.__version__, "side": "elsewhere", "pages": 0, "reach": False}
         with mock.patch.object(launch, "running", return_value=info):
             url, what = launch.open_page(self.paths, self.home)
         self.assertIn("elsewhere", what)
 
     def test_a_second_open_does_not_open_a_second_tab(self):
-        info = {"port": 27180, "version": launch.__version__, "side": side(), "pages": 0, "reach": True}
+        info = {"port": 22267, "version": launch.__version__, "side": side(), "pages": 0, "reach": True}
         with mock.patch.dict(os.environ, {launch.NO_WINDOW: ""}), \
                 mock.patch.object(launch, "running", return_value=info), \
                 mock.patch.object(launch, "open_browser", return_value=True) as browser:
@@ -415,7 +426,7 @@ class OpenTest(unittest.TestCase):
         self.assertEqual(browser.call_count, 2)
 
     def test_stop_on_the_other_side_writes_the_request(self):
-        info = {"port": 27180, "pid": 42, "reach": False}
+        info = {"port": 22267, "pid": 42, "reach": False}
         with mock.patch.object(launch, "running", return_value=None):
             self.assertTrue(launch.stop(self.home, info, wait=0.5))
         self.assertEqual(self.home.stop.read_text().strip(), "42")
