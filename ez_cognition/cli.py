@@ -90,14 +90,35 @@ def cmd_init(paths: Paths) -> int:
     if not ignore.is_file():
         write_text(ignore, ".local/\n")
         print("created %s/.gitignore" % DATA_DIR)
-    line = ("This project uses ez-cognition. Before you work, read `%s/agent-guide.md` and follow it. "
-            "If that folder is empty, run `git submodule update --init` first." % _plugin_dir(paths))
+    plugin = _plugin_dir(paths)
+    block = (
+        "Before you work, read `handbook.md` (the current notes of the group) and `handbook.local.md` "
+        "(your own notes, if the file exists). Read `journal.md` only when you need the history.\n\n"
+        "This project uses ez-cognition. Before you work, read `%s/agent-guide.md` and follow it. "
+        "If that folder is empty, run `git submodule update --init` first.\n" % plugin
+    )
     agents = paths.root / "AGENTS.md"
     old = agents.read_text(encoding="utf-8") if agents.is_file() else ""
     if ENTRY_MARK not in old:
         gap = "" if not old else ("\n" if old.endswith("\n") else "\n\n")
-        write_text(agents, old.replace("\r\n", "\n") + gap + line + "\n")
-        print("added the entry line to AGENTS.md")
+        write_text(agents, old.replace("\r\n", "\n") + gap + block)
+        print("added the entry lines to AGENTS.md")
+    # The project notes: see agent-guide.md, "Project notes".
+    for name, text in (
+        ("handbook.md", "# Handbook\n\nThe current notes for the agents of all members. "
+                        "See `%s/agent-guide.md`, \"Project notes\".\n" % plugin),
+        ("journal.md", "# Journal\n\nWrite here while you work. Add new entries at the end.\n"),
+    ):
+        file = paths.root / name
+        if not file.exists():
+            write_text(file, text)
+            print("created %s" % name)
+    gitignore = paths.root / ".gitignore"
+    rules = gitignore.read_text(encoding="utf-8") if gitignore.is_file() else ""
+    if "handbook.local.md" not in rules.split():
+        gap = "" if not rules or rules.endswith("\n") else "\n"
+        write_text(gitignore, rules.replace("\r\n", "\n") + gap + "handbook.local.md\n")
+        print("added handbook.local.md to .gitignore")
     claude = paths.root / "CLAUDE.md"
     if not claude.is_file():
         write_text(claude, "@AGENTS.md\n")

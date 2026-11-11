@@ -40,18 +40,19 @@ Do the setup on `main`.
 
 1. Put the original course materials in `docs/`. Examples: the assignment, the rubric, the syllabus, the feedback of the teaching assistant. Do not edit them. If some materials are not in the repo, ask the leader for them.
 2. Add ez-cognition to the project as a git submodule with its public address, so that the members get it when they clone: `git submodule add https://github.com/Pmechano/ez-cognition.git ez-cognition`. Do not use a local path: the members cannot fetch it.
-3. Run `init`. It creates `cognition-data/` and adds one line to `AGENTS.md`, so that each member's agent finds this guide. Commit that line: if the project ignores `AGENTS.md` in git, put the line in a file that git keeps (for example `README.md`), because the members' agents only see committed files.
+3. Run `init`. It creates `cognition-data/`, `handbook.md` and `journal.md`, adds `handbook.local.md` to `.gitignore`, and adds a few lines to `AGENTS.md`, so that each member's agent finds the handbook and this guide (see "Project notes"). Commit `AGENTS.md`, `handbook.md` and `journal.md`: the members' agents only see committed files.
 4. Read all of `docs/`. Then write the record (see "The record"). The content comes only from the course materials, from what the leader tells you, and from the official descriptions of the public datasets, methods and papers that the materials name.
 5. Draft the framework with the leader: propose an answer for each step, and change it until the leader agrees. The group aims for the top band of the rubric. A step can stay without an answer.
 6. Run `check`, then `open`. The setup is done when the leader has read the page and agrees with it.
-7. Commit and push, with `cognition-data/` (except `.local/`). Add the Slack channel line to `AGENTS.md` as `collab-guide.md` says. If `collab-guide.md` applies, send a `framework` message.
+7. Write `handbook.md` (see "Project notes"). Add the Slack channel line to it as `collab-guide.md` says. Commit and push, with `cognition-data/` (except `.local/`). If `collab-guide.md` applies, send a `framework` message.
 
 ## Start of each session
 
-1. Run `open`. If it prints that the user has no name, ask the user to write a name in the settings panel of the page. Do not write it yourself.
-2. Read the record: first the text that the page shows (this is what you and the user agree on), then the `notes` and the sources. For the exact wording of a requirement, read the source file.
-3. Read the Slack channel as `collab-guide.md` tells you.
-4. Ask what the user wants to do, if you do not know.
+1. Read `handbook.md` and `handbook.local.md` (see "Project notes").
+2. Run `open`. If it prints that the user has no name, ask the user to write a name in the settings panel of the page. Do not write it yourself.
+3. Read the record: first the text that the page shows (this is what you and the user agree on), then the `notes` and the sources. For the exact wording of a requirement, read the source file.
+4. Read the Slack channel as `collab-guide.md` tells you.
+5. Ask what the user wants to do, if you do not know.
 
 ## Explore a direction (members)
 
@@ -245,6 +246,21 @@ The page should be as clear as a good README. These rules are for our solution, 
 - Do not copy the source text, and do not put in every detail. The page does not show sources; agents read the details in `docs/`.
 - Write in the user's language.
 
+## Project notes
+
+The agents of a project keep their notes in three files at the project root:
+
+| File | In git | Content | When to change it |
+|---|---|---|---|
+| `journal.md` | yes | What you did, found, decided and did not finish, as you work. Add entries at the end. | At any time. |
+| `handbook.md` | yes | The current notes for the agents of all members: how the project is set up, the rules of the group, the decisions, the traps. It says how things are now, not what happened. | Before each push: bring it up to date from the journal. Change or remove text that is out of date. Do not add dated entries. |
+| `handbook.local.md` | no | The same as `handbook.md`, for your user only: their preferences, their local paths. | At any time. |
+
+- At the start of a session, read `handbook.md` and `handbook.local.md`. Read `journal.md` only when you need the history.
+- `AGENTS.md` only points to these files and to this guide. Do not write notes in it.
+- Do not put in `handbook.md` what the record already says (the task, the steps, the answers, the state). The record is for people; the handbook is for agents.
+- If git reports a conflict in `journal.md`, keep the entries of both sides. In `handbook.md`, keep both sides, then rewrite the part so that it says the current state once.
+
 ## Questions
 
 The user can ask you about the project. Answer with the framework in mind: say which step the answer is about.
@@ -255,6 +271,7 @@ The record is a transcription and can contain errors. If a question needs the ex
 
 - Do not change the files of ez-cognition.
 - Do not write in `cognition-data/.local/`. It contains the user's personal state, and git ignores it. The only exception is the file that `collab-guide.md` names.
+- Do not put personal notes in `handbook.md` or `journal.md`: the group sees both. Personal notes go in `handbook.local.md`.
 - Do not write in `~/.ez-cognition/`. It contains the state of the one server: the list of projects and the look of the page. Only `open` and the page write it.
 - The marks "我已认知" on the page belong to the user. They are voluntary. Do not ask the user to set them, and do not test the user.
 - The page shows who explores what. Do not compare the members, and do not count their work.

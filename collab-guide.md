@@ -5,7 +5,7 @@
 ## 准备
 
 - Slack MCP。如果你不能读或发 Slack 消息，先告诉用户，先不要急着开工。
-- 频道。项目的 `AGENTS.md` 里有一行 `Slack channel: #<名字> (<频道 ID>)`。如果没有这一行，问用户，并请组长加上。
+- 频道。项目的 `handbook.md` 里有一行 `Slack channel: #<名字> (<频道 ID>)`。如果没有这一行，问用户，并请组长加上。
 - 记录的 id 和步骤的 id，在记录里（见 `agent-guide.md`）。记录的 id 就是 `cognition-data/` 里的文件名。消息的地址写成 `<记录 id>/<步骤 id>`，例如 `bikes/method`。
 
 ## 规则

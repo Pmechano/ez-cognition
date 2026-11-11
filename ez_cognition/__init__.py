@@ -1,3 +1,3 @@
 """ez-cognition: a page that helps a group understand its task and its answer."""
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"

@@ -51,17 +51,32 @@ class InitTest(unittest.TestCase):
             (paths.root / "AGENTS.md").write_bytes(b"# Notes\r\n\r\nKeep this.\r\n")
             code, out = run("--root", str(paths.root), "init")
             self.assertEqual(code, 0)
-            self.assertIn("added the entry line", out)
+            self.assertIn("added the entry lines", out)
             first = (paths.root / "AGENTS.md").read_bytes()
             self.assertNotIn(b"\r", first)
-            self.assertTrue(first.startswith(b"# Notes\n\nKeep this.\n\nThis project uses ez-cognition."))
+            self.assertTrue(first.startswith(b"# Notes\n\nKeep this.\n\nBefore you work, read `handbook.md`"))
+            self.assertIn(b"This project uses ez-cognition.", first)
             self.assertEqual((paths.data / ".gitignore").read_bytes(), b".local/\n")
             self.assertEqual((paths.root / "CLAUDE.md").read_bytes(), b"@AGENTS.md\n")
+            self.assertTrue((paths.root / "handbook.md").read_text(encoding="utf-8").startswith("# Handbook"))
+            self.assertTrue((paths.root / "journal.md").read_text(encoding="utf-8").startswith("# Journal"))
+            self.assertEqual((paths.root / ".gitignore").read_bytes(), b"handbook.local.md\n")
+            handbook = (paths.root / "handbook.md").read_bytes()
 
             code, out = run("--root", str(paths.root), "init")
             self.assertEqual(code, 0)
             self.assertNotIn("added", out)
+            self.assertNotIn("created", out)
             self.assertEqual((paths.root / "AGENTS.md").read_bytes(), first)
+            self.assertEqual((paths.root / "handbook.md").read_bytes(), handbook)
+            self.assertEqual((paths.root / ".gitignore").read_bytes(), b"handbook.local.md\n")
+
+    def test_init_adds_to_an_existing_gitignore(self):
+        folder, paths = project({})
+        with folder:
+            (paths.root / ".gitignore").write_bytes(b"data/")
+            run("--root", str(paths.root), "init")
+            self.assertEqual((paths.root / ".gitignore").read_bytes(), b"data/\nhandbook.local.md\n")
 
     def test_init_keeps_an_existing_claude_file(self):
         folder, paths = project({})
