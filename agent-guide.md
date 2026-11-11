@@ -171,6 +171,8 @@ All keys except `title` and `goal` are optional. `from` is optional on cards, te
 - Do not move points from other parts into a card, and do not add your own comments or conclusions to these cards.
 - At the first use of a technical word, give its English original, for example `受试者留一（Leave-One-Subject-Out, LOSO）`. Explain the word in `terms`, not in the card, so that the card stays close to the source.
 - The course materials often only name a public dataset, method or paper. Read its official description and put the facts that a member needs in `terms`: what one item is, how large it is, which classes it has. Do not write such facts from memory.
+- Links do not go in the card text. Put each link in the `link` of the term that it belongs to: the official page of a dataset, the repository or paper of a method. When the source has a link, keep the name in the card and move the link to that term.
+- `terms` are for words that a member may not know. Do not add common words. A note that only repeats the English name is not needed.
 - End with a card "要点小结": the few things that a member must remember. Only this card contains your own words.
 
 Example. The source:
