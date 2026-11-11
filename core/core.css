@@ -121,17 +121,19 @@ th { background: var(--surface); color: var(--bright); font-weight: 600; }
 
 figure { margin: 0.4rem 0 0.9rem; }
 
-/* An image is as wide as the text at most, and never taller than most of
- * the window, so a tall image does not fill the screen. */
+/* An image is small enough to read beside the text: at most 30rem wide and
+ * 20rem high. A click opens it at full size. */
 figure img, p img {
   display: block;
-  max-width: 100%;
-  max-height: min(32rem, 75vh);
+  max-width: min(100%, 30rem);
+  max-height: min(20rem, 45vh);
   width: auto;
   height: auto;
   border-radius: 8px;
   border: 1px solid var(--rule);
 }
+
+figure a { display: inline-block; cursor: zoom-in; }
 
 figcaption { margin-top: 0.4rem; color: var(--dim); font-size: 0.88rem; }
 

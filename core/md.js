@@ -128,7 +128,10 @@ function list(lines, options) {
 export function figure(src, alt, options = {}) {
   const url = options.image ? options.image(src) : null;
   if (!url) return el("p", { class: "missing" }, [`[${alt || src}]`]);
-  return el("figure", null, [el("img", { src: url, alt: alt ?? "", loading: "lazy" }), alt ? el("figcaption", null, [inline(alt, options)]) : ""]);
+  // A click on the image opens it at full size.
+  const img = el("img", { src: url, alt: alt ?? "", loading: "lazy" });
+  const link = el("a", { href: url, target: "_blank", rel: "noopener", title: "查看原图" }, [img]);
+  return el("figure", null, [link, alt ? el("figcaption", null, [inline(alt, options)]) : ""]);
 }
 
 export function markdown(text, options = {}) {
