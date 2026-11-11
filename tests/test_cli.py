@@ -61,6 +61,8 @@ class InitTest(unittest.TestCase):
             self.assertEqual((paths.root / "CLAUDE.md").read_bytes(), b"@AGENTS.md\n")
             self.assertTrue((paths.root / "handbook.md").read_text(encoding="utf-8").startswith("# Handbook"))
             self.assertTrue((paths.root / "journal.md").read_text(encoding="utf-8").startswith("# Journal"))
+            self.assertTrue((paths.root / "human.md").read_text(encoding="utf-8").startswith("# Human notes"))
+            self.assertIn(b"| `human.md` | yes |", first)
             self.assertEqual((paths.root / ".gitignore").read_bytes(), b"handbook.local.md\n")
             handbook = (paths.root / "handbook.md").read_bytes()
 

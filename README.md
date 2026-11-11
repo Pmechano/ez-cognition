@@ -57,6 +57,7 @@ agent 需要、人不需要的细节（参数、路径、命令）写在隐藏�
     media/           记录用到的图片
     .local/          你在这个项目里的个人状态（名字、展开了什么、我已认知），git 忽略
   ez-cognition/      本仓库，agent 不改它
+  human.md           只有人写的笔记：想法、决定、对 agent 的纠正；agent 只读，以它为准
   handbook.md        给全组 agent 的手册：当前有效的说明，每次 push 前更新
   journal.md         agent 干活时的随手记，追加式
   handbook.local.md  只给自己 agent 的手册，git 忽略

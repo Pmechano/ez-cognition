@@ -40,7 +40,7 @@ Do the setup on `main`.
 
 1. Put the original course materials in `docs/`. Examples: the assignment, the rubric, the syllabus, the feedback of the teaching assistant. Do not edit them. If some materials are not in the repo, ask the leader for them.
 2. Add ez-cognition to the project as a git submodule with its public address, so that the members get it when they clone: `git submodule add https://github.com/Pmechano/ez-cognition.git ez-cognition`. Do not use a local path: the members cannot fetch it.
-3. Run `init`. It creates `cognition-data/`, `handbook.md` and `journal.md`, adds `handbook.local.md` to `.gitignore`, and writes a part of `AGENTS.md` that explains the notes files and points to this guide (see "Project notes"). Commit `AGENTS.md`, `handbook.md` and `journal.md`: the members' agents only see committed files.
+3. Run `init`. It creates `cognition-data/`, `human.md`, `handbook.md` and `journal.md`, adds `handbook.local.md` to `.gitignore`, and writes a part of `AGENTS.md` that explains the notes files and points to this guide (see "Project notes"). Commit `AGENTS.md`, `human.md`, `handbook.md` and `journal.md`: the members' agents only see committed files.
 4. Read all of `docs/`. Then write the record (see "The record"). The content comes only from the course materials, from what the leader tells you, and from the official descriptions of the public datasets, methods and papers that the materials name.
 5. Draft the framework with the leader: propose an answer for each step, and change it until the leader agrees. The group aims for the top band of the rubric. A step can stay without an answer.
 6. Run `check`, then `open`. The setup is done when the leader has read the page and agrees with it.
@@ -248,7 +248,7 @@ The page should be as clear as a good README. These rules are for our solution, 
 
 ## Project notes
 
-The agents of all members keep their notes in `handbook.md` (in git, the current state), `handbook.local.md` (not in git, personal) and `journal.md` (in git, the log). The project's `AGENTS.md` says what each file is and how to read and write it; `init` writes that part between two `ez-cognition` marks. Follow it. To update that part after a new version of ez-cognition, run `init` again: it changes only the marked part.
+The notes of a project are in `human.md` (in git, written only by the members), `handbook.md` (in git, the current state), `handbook.local.md` (not in git, personal) and `journal.md` (in git, the log). The project's `AGENTS.md` says what each file is and how to read and write it; `init` writes that part between two `ez-cognition` marks. Follow it. To update that part after a new version of ez-cognition, run `init` again: it changes only the marked part.
 
 ## Questions
 

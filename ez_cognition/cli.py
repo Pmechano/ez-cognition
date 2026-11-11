@@ -26,10 +26,12 @@ def notes_block(plugin: str) -> str:
         BEGIN,
         "## Project notes",
         "",
-        "The agents of all members keep their notes in three files. Read them before you work.",
+        "The notes of this project are in four files. Read them before you work.",
         "",
         "| File | In git | What it is | How to write it |",
         "|---|---|---|---|",
+        "| `human.md` | yes | The notes that the members write themselves: their wishes, decisions and corrections. "
+        "| Only people write it. Never change it, and do not add to it for your user. |",
         "| `handbook.md` | yes | The current notes for the agents of all members: the setup, the rules of the group, "
         "the decisions, the traps. It says how things are now. It does not repeat the record in `cognition-data/`. "
         "| Before each push, bring it up to date from the journal. Replace text that is out of date. "
@@ -39,8 +41,9 @@ def notes_block(plugin: str) -> str:
         "| `journal.md` | yes | The log of the agents: what you did, found and decided, and what is not finished. "
         "| Add entries at the end while you work. Nothing personal. |",
         "",
-        "- At the start of a session, read all three: `handbook.md`, `handbook.local.md` and `journal.md`. "
+        "- At the start of a session, read all four: `human.md`, `handbook.md`, `handbook.local.md` and `journal.md`. "
         "The handbook is the current state; where the journal is older than the handbook, the handbook is right.",
+        "- `human.md` is right over all other notes. If it disagrees with the handbook or the record, follow it and tell your user.",
         "- A git conflict in `journal.md`: keep the entries of both sides. In `handbook.md`: keep both sides, "
         "then rewrite the part so that it says the current state once.",
         "",
@@ -147,6 +150,7 @@ def cmd_init(paths: Paths) -> int:
         ("handbook.md", "# Handbook\n\nThe current notes for the agents of all members. "
                         "See `%s/agent-guide.md`, \"Project notes\".\n" % plugin),
         ("journal.md", "# Journal\n\nWrite here while you work. Add new entries at the end.\n"),
+        ("human.md", "# Human notes\n\nOnly the members write here. Agents read this file and never change it.\n"),
     ):
         file = paths.root / name
         if not file.exists():
