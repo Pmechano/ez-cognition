@@ -119,12 +119,13 @@ th, td { padding: 0.4rem 0.7rem; border: 1px solid var(--rule); text-align: left
 
 th { background: var(--surface); color: var(--bright); font-weight: 600; }
 
-figure { margin: 0.4rem 0 0.9rem; }
+figure { margin: 0.4rem 0 0.9rem; text-align: center; }
 
 /* An image is small enough to read beside the text: at most 30rem wide and
  * 20rem high. A click opens it at full size. */
 figure img, p img {
   display: block;
+  margin: 0 auto;
   max-width: min(100%, 30rem);
   max-height: min(20rem, 45vh);
   width: auto;
