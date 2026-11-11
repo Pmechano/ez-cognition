@@ -159,13 +159,46 @@ All keys except `title` and `goal` are optional. `from` is optional on cards, te
 
 ## Write the task
 
-Write `task.cards` as a study note of the course's own task description:
+`task.cards` is a faithful Chinese translation-summary of the course's own task description. A member reads it instead of the original.
 
-- Follow the source's own heading order. One card for each part of the source. Do not add parts that the source does not have.
-- Explain; do not transcribe. Use lists and tables for definitions, procedures and comparisons.
-- At the first use of a technical word, give its English original, for example `受试者留一（Leave-One-Subject-Out, LOSO）`. Put the words that a member may not know in `terms` too.
-- The course materials often only name a public dataset, method or paper. Read its official description and put the facts that a member needs in `terms` or in a card: what one item is, how large it is, which classes it has. Do not write such facts from memory.
-- End with a card "要点小结": the few things that a member must remember.
+- Take only the parts of the source that say what the work is: for example the overview, the core task, the parts or roadmap, the data, the evaluation. The parts about deliverables, formats, deadlines and grading go to `submit`, not here.
+- Follow the source's own order. One card for each part. The card title is the source's heading in Chinese, with its number.
+- Keep every point of the source, in the same order. A list in the source stays a list; a label in the source (for example "Core Task", "Key Concepts") stays a bold label. Summarize by saying each point in fewer words, not by dropping points.
+- Do not move points from other parts into a card, and do not add your own comments or conclusions to these cards.
+- At the first use of a technical word, give its English original, for example `受试者留一（Leave-One-Subject-Out, LOSO）`. Explain the word in `terms`, not in the card, so that the card stays close to the source.
+- The course materials often only name a public dataset, method or paper. Read its official description and put the facts that a member needs in `terms`: what one item is, how large it is, which classes it has. Do not write such facts from memory.
+- End with a card "要点小结": the few things that a member must remember. Only this card contains your own words.
+
+Example. The source:
+
+```
+1 Overview
+Core Task: Given a small set of defect-free reference images, build a system that detects anomalous product
+images and localizes defects. Complete one simple baseline, reproduce AnomalyDINO, and implement one
+improvement. AnomalyCLIP and additional robustness tests are optional extensions.
+Key Concepts:
+• Unsupervised Anomaly Detection: Learning normality without labeled defects.
+• Foundation Model Features: Patch-level representation and nearest-neighbor retrieval.
+• Vision-Language Models: Normal/abnormal prompt learning and zero-shot transfer.
+• Reliability: Domain shift, calibration, uncertainty, and false-alarm control.
+Group Size: 2 students per group.
+```
+
+The card (`title`, then `text`):
+
+```markdown
+1 概览
+
+**核心任务**：给定少量无缺陷的参考图像，构建一个系统，检测异常的产品图像并定位缺陷。需要完成一个简单基线、复现 AnomalyDINO，并实现一项改进。AnomalyCLIP 和额外的鲁棒性测试是可选扩展。
+
+**关键概念**
+- 无监督异常检测（Unsupervised Anomaly Detection）：在没有缺陷标注的情况下学习“正常”。
+- 基础模型特征（Foundation Model Features）：图像块（patch）级表示与最近邻检索。
+- 视觉-语言模型（Vision-Language Models）：正常/异常提示学习与零样本迁移。
+- 可靠性（Reliability）：域偏移、校准、不确定性与误报控制。
+
+**小组人数**：每组 2 人。
+```
 
 ## Images
 
@@ -180,7 +213,7 @@ Put the image files in `cognition-data/media/` and write the path as `media/<fil
 
 ## Write for the page
 
-The page should be as clear as a good README.
+The page should be as clear as a good README. These rules are for our solution, the submit requirements and the 要点小结 card. The other task cards follow "Write the task".
 
 - Use Markdown: `**bold**` for the key facts, lists, tables, `` `code` ``, links and math in `$...$`. Use headings (`###`) only inside a long card.
 - Short is better. One idea per card. The first sentence says the conclusion.
