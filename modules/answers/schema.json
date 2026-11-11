@@ -32,6 +32,10 @@
               "alt": {
                 "type": "string",
                 "minLength": 1
+              },
+              "from": {
+                "type": "string",
+                "minLength": 1
               }
             }
           },

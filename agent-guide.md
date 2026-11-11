@@ -145,7 +145,7 @@ The page shows the parts in this order: the title and the goal, the task, our so
 | `goal` | One or two sentences: what the group makes, and what it must show. |
 | `sources` | The source files. The page does not show them. |
 | `notes` | On a task card, a step or an answer: details for the agents (see "Agent notes"). |
-| `terms` | Each word that a member may not know, and its meaning. The page shows a note when the member points at the word. |
+| `terms` | Each word that a member may not know: `term`, `means` (Markdown) and an optional `link` (an official page to read more). The page shows a note when the member points at the word. |
 | `task.summary` | One sentence: what the work does. The closed panel shows it. |
 | `task.cards` | The task as a study note (see "Write the task"). Each card has a `title`, a Markdown `text`, and an optional `image`. |
 | `steps` | What the work must do or show, in order. `ask` says what the step asks. `rubric` says what the top band of the rubric asks for this step. `for` names the deliverables that show the step. |
@@ -213,14 +213,23 @@ The text that the page shows is the shared understanding of the user and the age
 
 ## Images
 
-A card shows its text on the left and its image on the right. An image often explains more than a paragraph. Add one where it helps:
+A card shows its text on the left and its image on the right. An image often explains more than a paragraph. Use an image that already exists before you make one. Look for them in this order:
 
-- a real item of the data (one input image, one signal window as a plot);
-- a figure from the course materials or from the paper of the method;
-- a diagram that you draw as an SVG file (a pipeline, the steps of the method);
-- a plot of a result, when the result exists.
+1. A figure from the course materials: the task description, the slides. Use it as it is. From a PDF, extract the image (`pdfimages`), or render the page (`pdftoppm`, PyMuPDF) and crop the figure.
+2. A real sample of the data: one input image as it is, or one item of the real data file as a plot (for example the signals of one window).
+3. A figure from the official page or paper of the dataset or method, for example the overview figure of the method's paper.
+4. A diagram that you draw. Only when 1 to 3 do not show the point.
+5. A plot of a result. Only when the result exists.
 
-Put the image files in `cognition-data/media/` and write the path as `media/<file>`. Allowed: PNG, JPG, GIF, WebP and SVG. Keep each file small (under 500 KB). `alt` says what the image shows, in one line: the page shows it under the image. Do not draw data or results that do not exist. `check` reports an image that is missing.
+Write the source of the image in its `from`: a file in `docs/`, a URL, or the data file and the item.
+
+When you make an image (a plot from data, a diagram), make it to this standard, so that all agents make images of the same quality:
+
+- A diagram: SVG. At most 8 boxes. One main flow, left to right or top to bottom, with arrows. A short label in each box, in the user's language. Text at least 13 px high when the image is 600 px wide. A light background (`#fbf7ef`), dark text (`#2e2416`), lines and arrows in `#a65a00`. A dashed line for a part that is optional, or that only the training (or only the test) uses.
+- A plot: PNG, about 1200 px wide. Real data only. A title, axis labels with units, and a legend when it has more than one line. No 3D, no decoration.
+- Before you use it, render the image and look at it: no text is cut, no text overlaps, the labels can be read.
+
+Put the image files in `cognition-data/media/` and write the path as `media/<file>`. Allowed: PNG, JPG, GIF, WebP and SVG. Keep each file under 500 KB. `alt` says what the image shows, in one line: the page shows it under the image. Do not draw data or results that do not exist. `check` reports an image that is missing.
 
 ## Write for the page
 

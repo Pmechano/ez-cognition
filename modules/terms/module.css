@@ -1,45 +1,66 @@
 .term {
-  position: relative;
   border-bottom: 1px dotted var(--dim);
   cursor: help;
   outline: none;
+  border-radius: 2px;
 }
 
-.term:hover, .term:focus { border-bottom-color: var(--link); color: var(--bright); }
+.term:hover, .term:focus-visible, .term.open {
+  border-bottom-color: var(--link);
+  background: color-mix(in srgb, var(--link) 14%, transparent);
+  color: var(--bright);
+}
 
-.term > .note {
-  display: none;
-  position: absolute;
-  left: 0;
-  top: calc(100% + 6px);
-  z-index: 20;
+.term-note {
+  position: fixed;
+  z-index: 60;
   width: max-content;
-  max-width: min(26rem, 80vw);
-  padding: 0.55rem 0.75rem;
+  max-width: min(24rem, calc(100vw - 16px));
+  padding: 0.75rem 0.95rem 0.8rem;
   border: 1px solid var(--frame);
-  border-radius: 8px;
-  background: var(--surface);
-  box-shadow: 0 8px 24px rgb(0 0 0 / 0.25);
+  border-top: 3px solid var(--link);
+  border-radius: 10px;
+  background: var(--bg);
+  box-shadow: 0 14px 36px rgb(0 0 0 / 0.28);
   color: var(--text);
   font-size: 0.9rem;
-  font-weight: normal;
   line-height: 1.6;
-  white-space: normal;
 }
 
-.term > .note > strong { color: var(--bright); }
+.term-note[hidden] { display: none; }
 
-.term:hover > .note, .term:focus > .note { display: block; }
+.term-note-head {
+  margin-bottom: 0.35rem;
+  color: var(--bright);
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.term-note-body > :last-child { margin-bottom: 0; }
+
+.term-note-body p { margin-bottom: 0.4rem; }
+
+.term-note-link {
+  display: inline-block;
+  margin-top: 0.55rem;
+  padding-top: 0.45rem;
+  border-top: 1px solid var(--rule);
+  width: 100%;
+  color: var(--link);
+  font-size: 0.85rem;
+  text-decoration: none;
+}
+
+.term-note-link:hover { text-decoration: underline; }
 
 /* On a phone the note sits at the bottom of the screen. */
 @media (max-width: 760px) {
-  .term > .note {
-    position: fixed;
-    left: 0.75rem;
+  .term-note {
+    left: 0.75rem !important;
     right: 0.75rem;
-    top: auto;
+    top: auto !important;
     bottom: 0.75rem;
-    max-width: none;
     width: auto;
+    max-width: none;
   }
 }
