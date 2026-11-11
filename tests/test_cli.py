@@ -51,10 +51,11 @@ class InitTest(unittest.TestCase):
             (paths.root / "AGENTS.md").write_bytes(b"# Notes\r\n\r\nKeep this.\r\n")
             code, out = run("--root", str(paths.root), "init")
             self.assertEqual(code, 0)
-            self.assertIn("added the entry lines", out)
+            self.assertIn("wrote the ez-cognition part", out)
             first = (paths.root / "AGENTS.md").read_bytes()
             self.assertNotIn(b"\r", first)
-            self.assertTrue(first.startswith(b"# Notes\n\nKeep this.\n\nBefore you work, read `handbook.md`"))
+            self.assertTrue(first.startswith(b"# Notes\n\nKeep this.\n\n<!-- ez-cognition: begin."))
+            self.assertIn(b"| `journal.md` | yes |", first)
             self.assertIn(b"This project uses ez-cognition.", first)
             self.assertEqual((paths.data / ".gitignore").read_bytes(), b".local/\n")
             self.assertEqual((paths.root / "CLAUDE.md").read_bytes(), b"@AGENTS.md\n")
@@ -70,6 +71,19 @@ class InitTest(unittest.TestCase):
             self.assertEqual((paths.root / "AGENTS.md").read_bytes(), first)
             self.assertEqual((paths.root / "handbook.md").read_bytes(), handbook)
             self.assertEqual((paths.root / ".gitignore").read_bytes(), b"handbook.local.md\n")
+
+    def test_init_replaces_its_own_part_only(self):
+        folder, paths = project({})
+        with folder:
+            from ez_cognition.cli import BEGIN, END
+            (paths.root / "AGENTS.md").write_text("# Mine\n\n%s\nold rules\n%s\n\n## After\nkeep\n" % (BEGIN, END), encoding="utf-8")
+            run("--root", str(paths.root), "init")
+            text = (paths.root / "AGENTS.md").read_text(encoding="utf-8")
+            self.assertNotIn("old rules", text)
+            self.assertEqual(text.count(BEGIN), 1)
+            self.assertTrue(text.startswith("# Mine\n\n" + BEGIN))
+            self.assertTrue(text.endswith("## After\nkeep\n"))
+            self.assertIn("## Project notes", text)
 
     def test_init_adds_to_an_existing_gitignore(self):
         folder, paths = project({})

@@ -16,6 +16,51 @@ from .paths import DATA_DIR, PLUGIN, Paths, find_root, read_json, write_text
 from .server import IDLE_SECONDS, running, serve
 
 ENTRY_MARK = "ez-cognition"
+BEGIN = "<!-- ez-cognition: begin. `init` writes this part; change it there, not here. -->"
+END = "<!-- ez-cognition: end -->"
+
+
+def notes_block(plugin: str) -> str:
+    """The part of AGENTS.md that ez-cognition keeps: the project notes and the entry line."""
+    return "\n".join([
+        BEGIN,
+        "## Project notes",
+        "",
+        "The agents of all members keep their notes in three files. Read them before you work.",
+        "",
+        "| File | In git | What it is | How to write it |",
+        "|---|---|---|---|",
+        "| `handbook.md` | yes | The current notes for the agents of all members: the setup, the rules of the group, "
+        "the decisions, the traps. It says how things are now. It does not repeat the record in `cognition-data/`. "
+        "| Before each push, bring it up to date from the journal. Replace text that is out of date. "
+        "No dated entries. Nothing personal. |",
+        "| `handbook.local.md` | no | The same, for your user only: their preferences, their local paths, "
+        "personal remarks. | At any time. |",
+        "| `journal.md` | yes | The log of the agents: what you did, found and decided, and what is not finished. "
+        "| Add entries at the end while you work. Nothing personal. |",
+        "",
+        "- At the start of a session, read `handbook.md` and `handbook.local.md`. Read `journal.md` too: "
+        "all of it when it has fewer than 300 lines, else its last 100 lines; search the rest when you need older history.",
+        "- A git conflict in `journal.md`: keep the entries of both sides. In `handbook.md`: keep both sides, "
+        "then rewrite the part so that it says the current state once.",
+        "",
+        "## ez-cognition",
+        "",
+        "This project uses ez-cognition. Before you work, read `%s/agent-guide.md` and follow it. "
+        "If that folder is empty, run `git submodule update --init` first." % plugin,
+        END,
+        "",
+    ])
+
+
+def with_block(text: str, block: str) -> str:
+    """`text` with the ez-cognition part replaced, or added at the end."""
+    if BEGIN in text and END in text:
+        head, rest = text.split(BEGIN, 1)
+        tail = rest.split(END, 1)[1].lstrip("\n")
+        return head + block + (("\n" + tail) if tail else "")
+    gap = "" if not text else ("\n" if text.endswith("\n") else "\n\n")
+    return text + gap + block
 
 
 def _plugin_dir(paths: Paths) -> str:
@@ -91,18 +136,12 @@ def cmd_init(paths: Paths) -> int:
         write_text(ignore, ".local/\n")
         print("created %s/.gitignore" % DATA_DIR)
     plugin = _plugin_dir(paths)
-    block = (
-        "Before you work, read `handbook.md` (the current notes of the group) and `handbook.local.md` "
-        "(your own notes, if the file exists). Read `journal.md` only when you need the history.\n\n"
-        "This project uses ez-cognition. Before you work, read `%s/agent-guide.md` and follow it. "
-        "If that folder is empty, run `git submodule update --init` first.\n" % plugin
-    )
     agents = paths.root / "AGENTS.md"
-    old = agents.read_text(encoding="utf-8") if agents.is_file() else ""
-    if ENTRY_MARK not in old:
-        gap = "" if not old else ("\n" if old.endswith("\n") else "\n\n")
-        write_text(agents, old.replace("\r\n", "\n") + gap + block)
-        print("added the entry lines to AGENTS.md")
+    old = agents.read_text(encoding="utf-8").replace("\r\n", "\n") if agents.is_file() else ""
+    new = with_block(old, notes_block(plugin))
+    if new != old:
+        write_text(agents, new)
+        print("wrote the ez-cognition part of AGENTS.md")
     # The project notes: see agent-guide.md, "Project notes".
     for name, text in (
         ("handbook.md", "# Handbook\n\nThe current notes for the agents of all members. "

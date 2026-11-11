@@ -40,7 +40,7 @@ Do the setup on `main`.
 
 1. Put the original course materials in `docs/`. Examples: the assignment, the rubric, the syllabus, the feedback of the teaching assistant. Do not edit them. If some materials are not in the repo, ask the leader for them.
 2. Add ez-cognition to the project as a git submodule with its public address, so that the members get it when they clone: `git submodule add https://github.com/Pmechano/ez-cognition.git ez-cognition`. Do not use a local path: the members cannot fetch it.
-3. Run `init`. It creates `cognition-data/`, `handbook.md` and `journal.md`, adds `handbook.local.md` to `.gitignore`, and adds a few lines to `AGENTS.md`, so that each member's agent finds the handbook and this guide (see "Project notes"). Commit `AGENTS.md`, `handbook.md` and `journal.md`: the members' agents only see committed files.
+3. Run `init`. It creates `cognition-data/`, `handbook.md` and `journal.md`, adds `handbook.local.md` to `.gitignore`, and writes a part of `AGENTS.md` that explains the notes files and points to this guide (see "Project notes"). Commit `AGENTS.md`, `handbook.md` and `journal.md`: the members' agents only see committed files.
 4. Read all of `docs/`. Then write the record (see "The record"). The content comes only from the course materials, from what the leader tells you, and from the official descriptions of the public datasets, methods and papers that the materials name.
 5. Draft the framework with the leader: propose an answer for each step, and change it until the leader agrees. The group aims for the top band of the rubric. A step can stay without an answer.
 6. Run `check`, then `open`. The setup is done when the leader has read the page and agrees with it.
@@ -48,7 +48,7 @@ Do the setup on `main`.
 
 ## Start of each session
 
-1. Read `handbook.md` and `handbook.local.md` (see "Project notes").
+1. Read the notes files as `AGENTS.md` says (see "Project notes").
 2. Run `open`. If it prints that the user has no name, ask the user to write a name in the settings panel of the page. Do not write it yourself.
 3. Read the record: first the text that the page shows (this is what you and the user agree on), then the `notes` and the sources. For the exact wording of a requirement, read the source file.
 4. Read the Slack channel as `collab-guide.md` tells you.
@@ -248,18 +248,7 @@ The page should be as clear as a good README. These rules are for our solution, 
 
 ## Project notes
 
-The agents of a project keep their notes in three files at the project root:
-
-| File | In git | Content | When to change it |
-|---|---|---|---|
-| `journal.md` | yes | What you did, found, decided and did not finish, as you work. Add entries at the end. | At any time. |
-| `handbook.md` | yes | The current notes for the agents of all members: how the project is set up, the rules of the group, the decisions, the traps. It says how things are now, not what happened. | Before each push: bring it up to date from the journal. Change or remove text that is out of date. Do not add dated entries. |
-| `handbook.local.md` | no | The same as `handbook.md`, for your user only: their preferences, their local paths. | At any time. |
-
-- At the start of a session, read `handbook.md` and `handbook.local.md`. Read `journal.md` only when you need the history.
-- `AGENTS.md` only points to these files and to this guide. Do not write notes in it.
-- Do not put in `handbook.md` what the record already says (the task, the steps, the answers, the state). The record is for people; the handbook is for agents.
-- If git reports a conflict in `journal.md`, keep the entries of both sides. In `handbook.md`, keep both sides, then rewrite the part so that it says the current state once.
+The agents of all members keep their notes in `handbook.md` (in git, the current state), `handbook.local.md` (not in git, personal) and `journal.md` (in git, the log). The project's `AGENTS.md` says what each file is and how to read and write it; `init` writes that part between two `ez-cognition` marks. Follow it. To update that part after a new version of ez-cognition, run `init` again: it changes only the marked part.
 
 ## Questions
 
