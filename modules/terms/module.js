@@ -1,17 +1,26 @@
 // Notes for the words that a member may not know.
+//
 // In each part of the page, the first use of a term gets a dotted line.
-// Pointing at it (or tapping it on a phone) opens a note. The note stays
-// while the pointer moves onto it, so its link can be clicked: it closes
-// 0.2 s after the pointer has left both the word and the note.
-// Data: record.terms = [{ term, means, link? }]   means is Markdown; link is an https URL
+// Pointing at it (or tapping it on a phone) opens a note. A note can name
+// other terms; pointing at one of them opens a second note beside the
+// first, and so on: the notes stay open together, as a chain.
+//
+// A note stays open while the pointer is on it, on its word, or on a deeper
+// note. When the pointer leaves, the deeper notes close after 0.2 s. A term
+// that is already open in the chain does not open again; its note lights up.
+// Escape closes the top note; a click outside closes all (a tap closes the top).
+//
+// Data: record.terms = [{ term, means, link? }]   means is Markdown; link is an http(s) URL
 
 import { registry, h, rich, md, t } from "/core/core.js";
 
-const SKIP = "code, pre, a, .term, .math, button, h1, .section-summary, .toc";
+const SKIP = "code, pre, a, .term, .math, button, h1, .section-summary, .toc, .term-note-head";
 const CLOSE_DELAY = 200;
+const MAX_DEPTH = 4;
 const SAFE_LINK = /^https?:\/\//i;
 
 const termOf = new WeakMap();
+let known = [];
 
 function textNodes(root) {
   const out = [];
@@ -22,133 +31,187 @@ function textNodes(root) {
   return out;
 }
 
+// Mark the first use of each term in `root`.
+function annotate(root, terms) {
+  // Longer terms first, so "宏平均 F1" wins over "F1".
+  const left = terms.filter((x) => x.term?.trim()).sort((a, b) => b.term.length - a.term.length);
+  for (let node of textNodes(root)) {
+    while (node && left.length) {
+      const text = node.nodeValue;
+      let best = null;
+      for (const term of left) {
+        const at = text.indexOf(term.term);
+        if (at >= 0 && (best === null || at < best.at)) best = { at, term };
+      }
+      if (!best) break;
+      const word = node.splitText(best.at);
+      const rest = word.splitText(best.term.term.length);
+      const mark = h("span", { class: "term", tabindex: "0", role: "button", "aria-haspopup": "dialog" }, best.term.term);
+      termOf.set(mark, best.term);
+      word.replaceWith(mark);
+      left.splice(left.indexOf(best.term), 1);
+      node = rest;
+    }
+    if (!left.length) break;
+  }
+}
+
 registry.add("annotator", {
   id: "terms",
   apply(root, record) {
-    // Longer terms first, so "宏平均 F1" wins over "F1".
-    const left = (record?.terms ?? []).filter((x) => x.term?.trim()).sort((a, b) => b.term.length - a.term.length);
-    for (let node of textNodes(root)) {
-      while (node && left.length) {
-        const text = node.nodeValue;
-        let best = null;
-        for (const term of left) {
-          const at = text.indexOf(term.term);
-          if (at >= 0 && (best === null || at < best.at)) best = { at, term };
-        }
-        if (!best) break;
-        const word = node.splitText(best.at);
-        const rest = word.splitText(best.term.term.length);
-        const mark = h("span", { class: "term", tabindex: "0", role: "button", "aria-haspopup": "dialog" }, best.term.term);
-        termOf.set(mark, best.term);
-        word.replaceWith(mark);
-        left.splice(left.indexOf(best.term), 1);
-        node = rest;
-      }
-      if (!left.length) break;
-    }
+    known = record?.terms ?? [];
+    annotate(root, known);
   },
 });
 
-// ---------- the one note window ----------
+// ---------- the chain of notes ----------
 
-let box = null;
-let owner = null;
+const chain = []; // [{ term, word, box }]; chain[0] is the note of a word in the page
 let timer = null;
 
-function window_() {
-  if (box) return box;
-  box = h("div", { class: "term-note", role: "dialog", hidden: true });
-  box.addEventListener("pointerenter", () => clearTimeout(timer));
-  box.addEventListener("pointerleave", (event) => {
-    if (event.pointerType === "mouse") later();
-  });
-  document.body.append(box);
+function boxOf(element) {
+  return element instanceof Element ? element.closest(".term-note") : null;
+}
+
+function levelOf(word) {
+  const box = boxOf(word);
+  const at = chain.findIndex((entry) => entry.box === box);
+  return at < 0 ? 0 : at + 1;
+}
+
+function build(term, level) {
+  const link = term.link && SAFE_LINK.test(term.link) ? term.link : null;
+  const body = h("div", { class: "term-note-body" }, md(term.means));
+  const parts = [
+    h("div", { class: "term-note-head" }, rich(term.term)),
+    body,
+    link &&
+      h("a", { class: "term-note-link", href: link, target: "_blank", rel: "noopener noreferrer" }, t("terms.more", "了解更多"), " ↗"),
+  ].filter(Boolean);
+  const box = h("div", { class: "term-note", role: "dialog", "data-level": String(level) }, ...parts);
+  if (level + 1 < MAX_DEPTH) {
+    const open = new Set(chain.slice(0, level).map((entry) => entry.term));
+    annotate(body, known.filter((x) => x !== term && !open.has(x)));
+  }
   return box;
 }
 
-function place(target) {
-  const note = window_();
-  const word = target.getBoundingClientRect();
+function place(entry, level) {
+  const box = entry.box;
+  const word = entry.word.getBoundingClientRect();
   const gap = 6;
-  const width = Math.min(note.offsetWidth, window.innerWidth - 16);
-  let left = Math.min(Math.max(8, word.left), window.innerWidth - width - 8);
-  let top = word.bottom + gap;
-  if (top + note.offsetHeight > window.innerHeight - 8 && word.top - gap - note.offsetHeight > 8) {
-    top = word.top - gap - note.offsetHeight;
+  const width = Math.min(box.offsetWidth, window.innerWidth - 16);
+  const height = box.offsetHeight;
+  let left;
+  let top;
+  const parent = level > 0 ? chain[level - 1].box.getBoundingClientRect() : null;
+  if (parent && parent.right + gap + width <= window.innerWidth - 8) {
+    // Beside the note that names the word, so that the note stays readable.
+    left = parent.right + gap;
+    top = Math.min(Math.max(8, word.top - 12), window.innerHeight - height - 8);
+  } else {
+    left = Math.min(Math.max(8, word.left), window.innerWidth - width - 8);
+    top = word.bottom + gap;
+    if (top + height > window.innerHeight - 8 && word.top - gap - height > 8) top = word.top - gap - height;
   }
-  note.style.left = `${left}px`;
-  note.style.top = `${top}px`;
+  box.style.left = `${left}px`;
+  box.style.top = `${Math.max(8, top)}px`;
 }
 
-function show(target) {
-  const term = termOf.get(target);
+function placeAll() {
+  chain.forEach((entry, level) => place(entry, level));
+}
+
+function trim(length) {
+  clearTimeout(timer);
+  while (chain.length > length) {
+    const entry = chain.pop();
+    entry.box.remove();
+    entry.word.classList.remove("open");
+  }
+}
+
+function open(word) {
+  const term = termOf.get(word);
   if (!term) return;
   clearTimeout(timer);
-  const note = window_();
-  if (owner !== target) {
-    owner?.classList.remove("open");
-    owner = target;
-    target.classList.add("open");
-    const link = term.link && SAFE_LINK.test(term.link) ? term.link : null;
-    note.replaceChildren(
-      h("div", { class: "term-note-head" }, rich(term.term)),
-      h("div", { class: "term-note-body" }, md(term.means)),
-      link &&
-        h(
-          "a",
-          { class: "term-note-link", href: link, target: "_blank", rel: "noopener noreferrer" },
-          t("terms.more", "了解更多"),
-          " ↗",
-        ),
-    );
+  const level = levelOf(word);
+  if (chain[level]?.word === word) return;
+  const again = chain.findIndex((entry) => entry.term === term);
+  if (again >= 0 && again < level) {
+    const box = chain[again].box;
+    box.classList.remove("ping");
+    void box.offsetWidth;
+    box.classList.add("ping");
+    return;
   }
-  note.hidden = false;
-  place(target);
+  trim(level);
+  const box = build(term, level);
+  box.style.zIndex = String(60 + level);
+  document.body.append(box);
+  word.classList.add("open");
+  chain.push({ term, word, box });
+  place(chain[level], level);
 }
 
-function hide() {
+// The deepest note that the pointer is on: on the note itself, on its word,
+// or on a note deeper in the chain.
+function reached(target) {
+  for (let level = chain.length - 1; level >= 0; level -= 1) {
+    const { box, word } = chain[level];
+    if (box.contains(target) || word.contains(target)) return level;
+  }
+  return -1;
+}
+
+function later(length) {
   clearTimeout(timer);
-  if (box) box.hidden = true;
-  owner?.classList.remove("open");
-  owner = null;
+  timer = setTimeout(() => trim(length), CLOSE_DELAY);
 }
 
-function later() {
-  clearTimeout(timer);
-  timer = setTimeout(hide, CLOSE_DELAY);
-}
-
-const termAt = (event) => event.target instanceof Element ? event.target.closest(".term") : null;
+const termAt = (target) => (target instanceof Element ? target.closest(".term") : null);
 
 document.addEventListener("pointerover", (event) => {
-  const target = termAt(event);
-  if (target && event.pointerType === "mouse") show(target);
+  if (event.pointerType !== "mouse") return;
+  const word = termAt(event.target);
+  if (word) {
+    open(word);
+    return;
+  }
+  const level = reached(event.target);
+  if (level === chain.length - 1) clearTimeout(timer);
+  else later(level + 1);
 });
 
 document.addEventListener("pointerout", (event) => {
-  const target = termAt(event);
-  if (target && event.pointerType === "mouse" && !target.contains(event.relatedTarget)) later();
+  if (event.pointerType !== "mouse" || event.relatedTarget) return;
+  later(0); // the pointer left the window
 });
 
 document.addEventListener("click", (event) => {
-  const target = termAt(event);
-  if (target) {
-    if (owner === target && !box.hidden) hide();
-    else show(target);
+  const word = termAt(event.target);
+  if (word) {
+    open(word);
     return;
   }
-  if (box && !box.contains(event.target)) hide();
+  const level = reached(event.target);
+  if (level >= 0) {
+    trim(level + 1);
+    return;
+  }
+  // Outside all notes: a tap closes the top note, a click closes them all.
+  trim(event.pointerType === "touch" ? chain.length - 1 : 0);
 });
 
 document.addEventListener("focusin", (event) => {
-  const target = termAt(event);
-  if (target) show(target);
+  const word = termAt(event.target);
+  if (word) open(word);
 });
 
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape") hide();
+  if (event.key === "Escape" && chain.length) trim(chain.length - 1);
 });
 
-// The words move when the page scrolls; the note goes with its word.
-window.addEventListener("scroll", () => owner && !box.hidden && place(owner), { passive: true });
-window.addEventListener("resize", () => owner && !box.hidden && place(owner));
+// The words move when the page scrolls; the notes go with them.
+window.addEventListener("scroll", () => chain.length && placeAll(), { passive: true });
+window.addEventListener("resize", () => chain.length && placeAll());

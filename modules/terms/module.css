@@ -27,7 +27,15 @@
   line-height: 1.6;
 }
 
-.term-note[hidden] { display: none; }
+/* A deeper note: the same look, with a little more shadow. */
+.term-note:not([data-level="0"]) { box-shadow: 0 18px 44px rgb(0 0 0 / 0.34); }
+
+/* A term that is already open lights up its note. */
+@keyframes ping {
+  from { border-color: var(--link); box-shadow: 0 0 0 3px color-mix(in srgb, var(--link) 45%, transparent); }
+}
+
+.term-note.ping { animation: ping 700ms ease-out 1; }
 
 .term-note-head {
   margin-bottom: 0.35rem;
@@ -53,7 +61,8 @@
 
 .term-note-link:hover { text-decoration: underline; }
 
-/* On a phone the note sits at the bottom of the screen. */
+/* On a phone the notes sit at the bottom of the screen. A deeper note covers
+ * the one before it; the one before shows a little above it. */
 @media (max-width: 760px) {
   .term-note {
     left: 0.75rem !important;
@@ -63,4 +72,7 @@
     width: auto;
     max-width: none;
   }
+  .term-note[data-level="1"] { bottom: 0.5rem; }
+  .term-note[data-level="2"] { bottom: 0.25rem; }
+  .term-note[data-level="3"] { bottom: 0; }
 }
