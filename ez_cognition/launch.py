@@ -21,6 +21,9 @@ from .paths import PLUGIN, Paths, write_text
 from .server import _direct, running
 
 NO_WINDOW = "EZC_NO_WINDOW"
+# A new tab needs a few seconds to connect. A second `open` in this time
+# must not open a second tab.
+OPENING_SECONDS = 15.0
 
 
 def version_key(text: Any) -> Tuple[int, ...]:
@@ -99,6 +102,15 @@ def open_browser(url: str) -> bool:
         return False
 
 
+def opening(home: Home) -> bool:
+    """True when `open` opened a tab a moment ago, and the tab did not connect yet."""
+    try:
+        at = float(home.opened.read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return False
+    return 0 <= time.time() - at < OPENING_SECONDS
+
+
 def wait_for_page(home: Home, info: Dict[str, Any], wait: float = 4.0) -> Dict[str, Any]:
     """Give a page that is already in the browser the time to connect again."""
     end = time.time() + wait
@@ -132,6 +144,12 @@ def open_page(paths: Paths, home: Optional[Home] = None) -> Tuple[Optional[str],
         return url, "already open in the browser; it now shows this project%s" % where
     if os.environ.get(NO_WINDOW):
         return url, "not opened, because %s is set%s" % (NO_WINDOW, where)
+    if opening(home):
+        return url, "the page is opening in the browser; it will show this project%s" % where
     if open_browser(url):
+        try:
+            write_text(home.opened, "%f\n" % time.time())
+        except OSError:
+            pass
         return url, "opened in the browser%s" % where
     return url, "could not open the browser. Give this URL to the user%s" % where

@@ -387,6 +387,17 @@ class OpenTest(unittest.TestCase):
             url, what = launch.open_page(self.paths, self.home)
         self.assertIn("elsewhere", what)
 
+    def test_a_second_open_does_not_open_a_second_tab(self):
+        info = {"port": 27180, "version": launch.__version__, "side": side(), "pages": 0, "reach": True}
+        with mock.patch.dict(os.environ, {launch.NO_WINDOW: ""}), \
+                mock.patch.object(launch, "running", return_value=info), \
+                mock.patch.object(launch, "open_browser", return_value=True) as browser:
+            self.assertIn("opened", launch.open_page(self.paths, self.home)[1])
+            self.assertIn("is opening", launch.open_page(self.paths, self.home)[1])
+            write_text(self.home.opened, "%f\n" % (time.time() - 60))
+            self.assertIn("opened", launch.open_page(self.paths, self.home)[1])
+        self.assertEqual(browser.call_count, 2)
+
     def test_stop_on_the_other_side_writes_the_request(self):
         info = {"port": 27180, "pid": 42, "reach": False}
         with mock.patch.object(launch, "running", return_value=None):

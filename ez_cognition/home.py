@@ -128,6 +128,7 @@ class Home:
         self.projects = self.dir / "projects.json"  # written by `open`
         self.user = self.dir / "user.json"          # the look of the page: theme, motion, language
         self.stop = self.dir / "stop"               # a request from `stop` when the server cannot be reached
+        self.opened = self.dir / "opened"           # when `open` last opened a browser tab
 
     # ---------- the list of projects ----------
 
