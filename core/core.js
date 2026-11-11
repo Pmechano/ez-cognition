@@ -751,8 +751,18 @@ function remember() {
   history.replaceState(null, "", `?${query}${location.hash}`);
 }
 
+// The version of ez-cognition that this page's code comes from. A newer
+// server has newer page code: the page loads it again.
+let codeVersion = null;
+
 async function load() {
   app.manifest = await getJSON("/api/manifest");
+  codeVersion ??= app.manifest.version;
+  if (app.manifest.version !== codeVersion) {
+    await flush();
+    location.reload();
+    return;
+  }
   const before = app.projectId;
   app.projectId = pickProject();
   if (app.projectId !== before) {
