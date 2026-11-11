@@ -39,8 +39,8 @@ def notes_block(plugin: str) -> str:
         "| `journal.md` | yes | The log of the agents: what you did, found and decided, and what is not finished. "
         "| Add entries at the end while you work. Nothing personal. |",
         "",
-        "- At the start of a session, read `handbook.md` and `handbook.local.md`. Read `journal.md` too: "
-        "all of it when it has fewer than 300 lines, else its last 100 lines; search the rest when you need older history.",
+        "- At the start of a session, read all three: `handbook.md`, `handbook.local.md` and `journal.md`. "
+        "The handbook is the current state; where the journal is older than the handbook, the handbook is right.",
         "- A git conflict in `journal.md`: keep the entries of both sides. In `handbook.md`: keep both sides, "
         "then rewrite the part so that it says the current state once.",
         "",
