@@ -147,7 +147,7 @@ The page shows the parts in this order: the title and the goal, the task, our so
 | `notes` | On a task card, a step or an answer: details for the agents (see "Agent notes"). |
 | `terms` | Each word that a member may not know: `term`, `means` (Markdown) and an optional `link` (an official page to read more). The page shows a note when the member points at the word. |
 | `task.summary` | One sentence: what the work does. The closed panel shows it. |
-| `task.cards` | The task as a study note (see "Write the task"). Each card has a `title`, a Markdown `text`, and an optional `image`. |
+| `task.cards` | The task as a translation-summary (see "Write the task"). Each card has a `title`, a Markdown `text`, and an optional `image` that shows under the text. |
 | `steps` | What the work must do or show, in order. `ask` says what the step asks. `rubric` says what the top band of the rubric asks for this step. `for` names the deliverables that show the step. |
 | `answers.<step-id>.answer` | How the group does that step, in one or two sentences. The closed row shows its first line. |
 | `answers.<step-id>.detail` | More: the reasons, the settings, what is not decided and what it depends on. |
@@ -215,7 +215,7 @@ The text that the page shows is the shared understanding of the user and the age
 
 ## Images
 
-A card shows its text on the left and its image on the right. An image often explains more than a paragraph. Use an image that already exists before you make one. Look for them in this order:
+An image often explains more than a paragraph. The page shows the `image` of a card or an answer in the text, under it, as in a README. When an image belongs in the middle of a card, write `![alt](media/<file>)` at that place in the text, and name its source in the card's `from`. Use an image that already exists before you make one. Look for them in this order:
 
 1. A figure from the course materials: the task description, the slides. Use it as it is. From a PDF, extract the image (`pdfimages`), or render the page (`pdftoppm`, PyMuPDF) and crop the figure.
 2. A real sample of the data: one input image as it is, or one item of the real data file as a plot (for example the signals of one window).

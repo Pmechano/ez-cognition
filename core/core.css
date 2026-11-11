@@ -5,7 +5,7 @@
  *   body font; a monospace font only for code, dates and marks
  * - amber is the main colour; a few more colours, each with one meaning:
  *   ok (done), warn (in progress), hot (needs you), link
- * - a card puts the text on the left and the image on the right
+ * - images sit in the text, under the paragraph they belong to, as in a README
  * - a wiki-like layout: a sidebar with a tree of contents; the record is
  *   fully open on the right; on a phone the sidebar is a drawer
  * - motion only shows what changed; it is short and it never loops
@@ -119,9 +119,19 @@ th, td { padding: 0.4rem 0.7rem; border: 1px solid var(--rule); text-align: left
 
 th { background: var(--surface); color: var(--bright); font-weight: 600; }
 
-figure { margin: 0; }
+figure { margin: 0.4rem 0 0.9rem; }
 
-figure img, p img { display: block; max-width: 100%; height: auto; border-radius: 8px; border: 1px solid var(--rule); }
+/* An image is as wide as the text at most, and never taller than most of
+ * the window, so a tall image does not fill the screen. */
+figure img, p img {
+  display: block;
+  max-width: 100%;
+  max-height: min(32rem, 75vh);
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  border: 1px solid var(--rule);
+}
 
 figcaption { margin-top: 0.4rem; color: var(--dim); font-size: 0.88rem; }
 
@@ -316,7 +326,9 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 
 .section-summary { color: var(--dim); margin: 0.5rem 0 1rem; }
 
-.section-body { display: grid; gap: 0.9rem; }
+.section-body { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.9rem; }
+
+.card, .card-text { min-width: 0; }
 
 .card { scroll-margin-top: 1rem; }
 
@@ -367,20 +379,13 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
   .drawer-open .sidebar { transform: none; }
 }
 
-/* ---------- cards: text left, image right ---------- */
+/* ---------- cards ---------- */
 
 .card {
   padding: 1.1rem 1.3rem;
   border: 1px solid var(--rule);
   border-radius: 12px;
   background: var(--surface);
-}
-
-.card.has-image {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 1.5rem;
-  align-items: start;
 }
 
 .card-text > :last-child { margin-bottom: 0; }
@@ -437,5 +442,4 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 @media (max-width: 760px) {
   html { font-size: 15px; }
   .card { padding: 0.9rem 1rem; }
-  .card.has-image { grid-template-columns: minmax(0, 1fr); gap: 0.9rem; }
 }

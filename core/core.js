@@ -87,16 +87,14 @@ export function points(list) {
   return h("ul", { class: "points" }, (list ?? []).map((line) => h("li", null, rich(line))));
 }
 
-// A card: a title, Markdown text, and an image beside the text (below it on
-// a narrow screen). A card is one part of the page for the annotators. With
-// an `id`, the card is an entry of the tree of contents.
+// A card: a title, Markdown text, and an image in the text, under it (like
+// an image in a README). A card is one part of the page for the
+// annotators. With an `id`, the card is an entry of the tree of contents.
 export function card({ title, text, image, notes: extra }, cls = "", id = null) {
-  const pic = picture(image);
   return h(
     "article",
-    { class: `card${pic ? " has-image" : ""}${cls ? " " + cls : ""}`, "data-scope": "", id, "data-toc": id ? "" : null },
-    h("div", { class: "card-text" }, title && h("h3", { class: "card-title" }, rich(title)), md(text), notes(extra)),
-    pic && h("div", { class: "card-image" }, pic),
+    { class: `card${cls ? " " + cls : ""}`, "data-scope": "", id, "data-toc": id ? "" : null },
+    h("div", { class: "card-text" }, title && h("h3", { class: "card-title" }, rich(title)), md(text), picture(image), notes(extra)),
   );
 }
 
