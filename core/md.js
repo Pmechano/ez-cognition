@@ -5,11 +5,12 @@
 // paragraphs, bold, italic, code, links, images, ordered and unordered lists
 // (nested), tables, quotes, rules, and math in $...$ and $$...$$.
 //
-//   markdown(text, { image(src) }) -> DocumentFragment
-//   inline(text, { image(src) })   -> DocumentFragment
+//   markdown(text, { image(src), link(href) }) -> DocumentFragment
+//   inline(text, { image(src), link(href) })   -> DocumentFragment
 //
 // `image(src)` turns a path from the record into a URL, or returns null when
-// the image may not be shown. Math becomes <span class="math"> and
+// the image may not be shown. `link(href)` does the same for a link that is
+// not a web address, for example a file of the project. Math becomes <span class="math"> and
 // <div class="math math-block"> with the TeX in `data-tex`; the core renders it.
 
 function el(tag, attrs, kids) {
@@ -55,9 +56,11 @@ export function inline(text, options = {}) {
       const url = options.image ? options.image(m[6]) : null;
       out.append(url ? el("img", { src: url, alt: m[5], loading: "lazy" }) : m[5]);
     } else if (m[8] !== undefined) {
-      const href = m[8];
       const kids = [inline(m[7], options)];
-      out.append(SAFE_LINK.test(href) ? el("a", { href, target: "_blank", rel: "noopener noreferrer" }, kids) : kids[0]);
+      const href = SAFE_LINK.test(m[8]) ? m[8] : options.link ? options.link(m[8]) : null;
+      if (!href) out.append(kids[0]);
+      else if (href.startsWith("#")) out.append(el("a", { href }, kids));
+      else out.append(el("a", { href, target: "_blank", rel: "noopener noreferrer" }, kids));
     } else if (m[9] !== undefined) out.append(el("strong", null, [inline(m[9], options)]));
     else if (m[10] !== undefined) out.append(el("em", null, [inline(m[10], options)]));
   }

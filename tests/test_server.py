@@ -172,6 +172,49 @@ class ReadTest(ServerCase):
                      "/files/%s/media/%%2e%%2e/talk.json" % self.pid, "/files/none/media/robot.png", "/files/"):
             self.assertEqual(self.get(path)[0], 404, path)
 
+    def test_project_files(self):
+        self.start()
+        root = self.paths.root
+        (root / "src").mkdir()
+        (root / "src" / "risk.py").write_bytes(b"print(1)\n")
+        (root / "docs").mkdir()
+        (root / "docs" / "task.pdf").write_bytes(b"%PDF-1.4\n")
+        (root / "page.html").write_text("<script>alert(1)</script>", encoding="utf-8")
+        (root / "handbook.local.md").write_text("private", encoding="utf-8")
+        (root / ".env").write_text("KEY=1", encoding="utf-8")
+        (root / ".git").mkdir()
+        (root / ".git" / "config").write_text("x", encoding="utf-8")
+
+        link = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        for path, kind, sandbox in (("src/risk.py", "text/plain; charset=utf-8", True),
+                                    ("page.html", "text/plain; charset=utf-8", True),
+                                    ("docs/task.pdf", "application/pdf", False)):
+            link.request("GET", "/raw/%s/%s" % (self.pid, path))
+            reply = link.getresponse()
+            reply.read()
+            self.assertEqual((reply.status, reply.getheader("Content-Type")), (200, kind), path)
+            self.assertEqual("sandbox" in (reply.getheader("Content-Security-Policy") or ""), sandbox, path)
+        link.close()
+        self.assertEqual(self.get("/raw/%s/src/risk.py" % self.pid)[1], b"print(1)\n")
+        for path in ("handbook.local.md", ".env", ".git/config", "src/none.py", "../x", "%2e%2e/x", "src", ""):
+            self.assertEqual(self.get("/raw/%s/%s" % (self.pid, path))[0], 404, path)
+        self.assertEqual(self.get("/raw/none/src/risk.py")[0], 404)
+
+        code, body = self.get("/api/dir?project=%s&path=" % self.pid)
+        names = [(e["name"], e["dir"]) for e in body["entries"]]
+        self.assertEqual(names[:3], [("cognition-data", True), ("docs", True), ("src", True)])
+        self.assertIn(("page.html", False), names)
+        self.assertFalse({"handbook.local.md", ".env", ".git"} & {n for n, _ in names})
+        self.assertEqual(self.get("/api/dir?project=%s&path=src/" % self.pid)[1]["entries"],
+                         [{"name": "risk.py", "dir": False, "size": 9}])
+        for path in ("../", ".git", "src/risk.py", "none/"):
+            self.assertFalse(self.get("/api/dir?project=%s&path=%s" % (self.pid, path))[1]["ok"], path)
+
+    def test_the_file_viewer_is_a_page_file(self):
+        self.start()
+        for path in ("/core/view.html", "/core/view.js", "/core/view.css"):
+            self.assertEqual(self.get(path)[0], 200, path)
+
     def test_another_host_is_refused(self):
         self.start()
         self.assertEqual(self.get("/api/manifest", {"Host": "evil.example:%d" % self.port})[0], 403)
@@ -334,6 +377,20 @@ class LifeTest(ServerCase):
         self.assertEqual(self.post("/api/stop", {}), (200, {"ok": True}))
         self.assertTrue(self.wait(lambda: not self.runner.is_alive()))
         self.assertEqual(self.app.left, 1)
+
+    def test_stops_when_its_plugin_folder_is_gone(self):
+        self.start()
+        gone = tempfile.TemporaryDirectory()
+        self.addCleanup(gone.cleanup)
+        plugin = Path(gone.name) / "ez-cognition"
+        plugin.mkdir()
+        (plugin / "ezc.py").write_text("", encoding="utf-8")
+        self.app.plugin = plugin
+        time.sleep(0.3)
+        self.assertTrue(self.runner.is_alive())
+        (plugin / "ezc.py").unlink()
+        plugin.rmdir()
+        self.assertTrue(self.wait(lambda: not self.runner.is_alive()))
 
     def test_stop_from_the_other_side(self):
         self.start()

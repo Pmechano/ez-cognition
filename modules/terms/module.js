@@ -11,10 +11,24 @@
 // Escape closes the top note; a click outside closes all (a tap closes the top).
 //
 // Data: record.terms = [{ term, means, link? }]   means is Markdown; link is an http(s) URL
+//
+// Other modules can add notes of their own (the files module does):
+//
+//   registry.add("term-source", { id, terms(record) -> [{
+//     term,      // the name of the entry
+//     match?,    // the texts that mark it; default [term]
+//     head?,     // the head of the note (Markdown); default: term
+//     means,     // the note (Markdown)
+//     href?,     // a link at the bottom of the note
+//     more?,     // the text of that link
+//   }] })
+//
+// A text in `code` is marked too, when the whole text is one of the names.
 
 import { registry, h, rich, md, t } from "/core/core.js";
 
 const SKIP = "code, pre, a, .term, .math, button, h1, .section-summary, .toc, .term-note-head";
+const NO_CODE = "pre, a, .term, .toc, .term-note-head";
 const CLOSE_DELAY = 200;
 const MAX_DEPTH = 4;
 const SAFE_LINK = /^https?:\/\//i;
@@ -22,44 +36,99 @@ const SAFE_LINK = /^https?:\/\//i;
 const termOf = new WeakMap();
 let known = [];
 
-function textNodes(root) {
+// The text nodes and the `code` elements of `root`, in the order of the page.
+function places(root) {
   const out = [];
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
-    acceptNode: (node) => (node.parentElement?.closest(SKIP) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT),
+  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT | NodeFilter.SHOW_ELEMENT, {
+    acceptNode(node) {
+      if (node.nodeType === Node.ELEMENT_NODE) {
+        return node.tagName === "CODE" && !node.closest(NO_CODE) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_SKIP;
+      }
+      return node.parentElement?.closest(SKIP) ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT;
+    },
   });
   for (let node = walker.nextNode(); node; node = walker.nextNode()) out.push(node);
   return out;
 }
 
-// Mark the first use of each term in `root`.
-function annotate(root, terms) {
-  // Longer terms first, so "宏平均 F1" wins over "F1".
-  const left = terms.filter((x) => x.term?.trim()).sort((a, b) => b.term.length - a.term.length);
-  for (let node of textNodes(root)) {
-    while (node && left.length) {
+function markAs(el, entry) {
+  el.classList.add("term");
+  el.setAttribute("tabindex", "0");
+  el.setAttribute("role", "button");
+  el.setAttribute("aria-haspopup", "dialog");
+  termOf.set(el, entry);
+}
+
+// Mark the first use of each entry in `root`.
+function annotate(root, entries) {
+  const left = new Set(entries);
+  // Longer names first, so "宏平均 F1" wins over "F1".
+  const names = entries
+    .flatMap((entry) => (entry.match ?? [entry.term]).filter((name) => name?.trim()).map((name) => ({ name, entry })))
+    .sort((a, b) => b.name.length - a.name.length);
+  for (let node of places(root)) {
+    if (!left.size) break;
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      const text = node.textContent.trim();
+      const hit = names.find((x) => left.has(x.entry) && x.name === text);
+      if (hit) {
+        markAs(node, hit.entry);
+        left.delete(hit.entry);
+      }
+      continue;
+    }
+    while (node && left.size) {
       const text = node.nodeValue;
       let best = null;
-      for (const term of left) {
-        const at = text.indexOf(term.term);
-        if (at >= 0 && (best === null || at < best.at)) best = { at, term };
+      for (const x of names) {
+        if (!left.has(x.entry)) continue;
+        const at = text.indexOf(x.name);
+        if (at >= 0 && (best === null || at < best.at)) best = { at, ...x };
       }
       if (!best) break;
       const word = node.splitText(best.at);
-      const rest = word.splitText(best.term.term.length);
-      const mark = h("span", { class: "term", tabindex: "0", role: "button", "aria-haspopup": "dialog" }, best.term.term);
-      termOf.set(mark, best.term);
+      const rest = word.splitText(best.name.length);
+      const mark = h("span", null, best.name);
+      markAs(mark, best.entry);
       word.replaceWith(mark);
-      left.splice(left.indexOf(best.term), 1);
+      left.delete(best.entry);
       node = rest;
     }
-    if (!left.length) break;
   }
+}
+
+// The terms of the record, then the entries of other modules. The same
+// objects for one record, so that the chain knows a term that is open.
+const cache = new WeakMap();
+
+function entriesOf(record) {
+  if (record && cache.has(record)) return cache.get(record);
+  const all = collect(record);
+  if (record) cache.set(record, all);
+  return all;
+}
+
+function collect(record) {
+  const own = (record?.terms ?? []).map((x) => ({
+    term: x.term,
+    means: x.means,
+    href: x.link && SAFE_LINK.test(x.link) ? x.link : null,
+    more: t("terms.more", "了解更多"),
+  }));
+  const more = registry.list("term-source").flatMap((source) => {
+    try {
+      return source.terms(record ?? {}) ?? [];
+    } catch {
+      return [];
+    }
+  });
+  return [...own, ...more].filter((x) => x.term?.trim());
 }
 
 registry.add("annotator", {
   id: "terms",
   apply(root, record) {
-    known = record?.terms ?? [];
+    known = entriesOf(record);
     annotate(root, known);
   },
 });
@@ -80,13 +149,12 @@ function levelOf(word) {
 }
 
 function build(term, level) {
-  const link = term.link && SAFE_LINK.test(term.link) ? term.link : null;
   const body = h("div", { class: "term-note-body" }, md(term.means));
   const parts = [
-    h("div", { class: "term-note-head" }, rich(term.term)),
+    h("div", { class: "term-note-head" }, rich(term.head ?? term.term)),
     body,
-    link &&
-      h("a", { class: "term-note-link", href: link, target: "_blank", rel: "noopener noreferrer" }, t("terms.more", "了解更多"), " ↗"),
+    term.href &&
+      h("a", { class: "term-note-link", href: term.href, target: "_blank", rel: "noopener noreferrer" }, term.more ?? t("terms.more", "了解更多"), " ↗"),
   ].filter(Boolean);
   const box = h("div", { class: "term-note", role: "dialog", "data-level": String(level) }, ...parts);
   if (level + 1 < MAX_DEPTH) {

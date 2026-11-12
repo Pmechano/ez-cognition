@@ -11,6 +11,14 @@ with the computer: after a restart, the next `open` starts it.
 An agent can be on the other side of WSL, where it cannot reach this port.
 So the server also writes its state to ~/.ez-cognition/server.json every
 few seconds, and it reads a stop request from ~/.ez-cognition/stop.
+
+The server runs the code of one project's copy of ez-cognition. When that
+folder goes away (the project was moved, renamed or deleted), the server
+stops, and the next `open` starts it from another copy.
+
+The page can also show the files of a project (code, results, the course
+materials): /raw/<project>/<path> gives a file, /api/dir a folder. Hidden
+files and folders and personal files (`*.local.*`) stay out.
 """
 
 from __future__ import annotations
@@ -50,6 +58,22 @@ MIME = {
 }
 # An image of a record cannot run script, even when it is opened alone.
 MEDIA_POLICY = "default-src 'none'; style-src 'unsafe-inline'; sandbox"
+# A file of a project. Text is sent as plain text, so it never runs as a page.
+RAW_MIME = {
+    ".pdf": "application/pdf",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+    ".svg": "image/svg+xml",
+}
+BINARY = {".zip", ".gz", ".tar", ".7z", ".rar", ".npy", ".npz", ".pt", ".pth", ".ckpt", ".pkl", ".pickle",
+          ".h5", ".hdf5", ".parquet", ".onnx", ".bin", ".exe", ".dll", ".so", ".docx", ".xlsx", ".pptx",
+          ".mp4", ".mov", ".mp3", ".wav", ".bmp", ".tif", ".tiff", ".ico"}
+MAX_RAW = 64 * 1024 * 1024
+MAX_DIR = 500
+PERSONAL_RE = re.compile(r"\.local(\.|$)")
 STATIC = ("core", "modules", "themes", "locales")
 MAX_BODY = 256 * 1024
 IDLE_SECONDS = None  # the server stays; tests and `serve --idle N` set a limit
@@ -149,6 +173,11 @@ def clean_look(raw: Any, old: Any) -> Dict[str, Any]:
     return look
 
 
+def visible(name: str) -> bool:
+    """A name of a file or folder that the page may show."""
+    return name not in ("", ".", "..") and not name.startswith(".") and not PERSONAL_RE.search(name)
+
+
 def slug(text: str) -> str:
     out = re.sub(r"[^a-z0-9]+", "-", text.lower()).strip("-")[:30].strip("-")
     return out or "project"
@@ -173,6 +202,7 @@ class App:
         self.version = 0
         self.pages = 0
         self.closing = False
+        self.plugin = PLUGIN  # the copy of ez-cognition that this server runs
         self.left = 0  # the pages that were open when the server stopped
         self.record: Optional[Dict[str, Any]] = None  # what serve() writes to server.json
         self.changed = threading.Condition()
@@ -273,6 +303,49 @@ class App:
             return None
         return file if file.is_file() else None
 
+    def project_path(self, pid: str, relative: str) -> Optional[Path]:
+        """A file or folder of a project that the page may show, or None.
+
+        The path is relative to the project root, with "/". It may not name a
+        hidden file or folder, a personal file (`*.local.*`), or leave the
+        project. The file does not have to exist.
+        """
+        project = self.project(pid)
+        if project is None:
+            return None
+        parts = relative.strip("/").split("/") if relative.strip("/") else []
+        if any(not visible(p) or "\\" in p or ":" in p for p in parts):
+            return None
+        target = project.paths.root.joinpath(*parts)
+        try:
+            target.resolve().relative_to(project.paths.root.resolve())
+        except (OSError, ValueError):
+            return None
+        return target
+
+    def listing(self, pid: str, relative: str) -> Dict[str, Any]:
+        folder = self.project_path(pid, relative)
+        if folder is None:
+            return {"ok": False, "error": "this path cannot be shown"}
+        if not folder.is_dir():
+            return {"ok": False, "error": "no such folder"}
+        entries = []
+        try:
+            children = sorted(folder.iterdir(), key=lambda p: (not p.is_dir(), p.name.lower()))
+        except OSError as err:
+            return {"ok": False, "error": str(err)}
+        for child in children:
+            if not visible(child.name):
+                continue
+            try:
+                entries.append({"name": child.name, "dir": child.is_dir(),
+                                "size": None if child.is_dir() else child.stat().st_size})
+            except OSError:
+                continue
+            if len(entries) >= MAX_DIR:
+                break
+        return {"ok": True, "entries": entries, "more": len(entries) >= MAX_DIR}
+
     # ---------- life ----------
 
     def write_record(self) -> None:
@@ -297,6 +370,13 @@ class App:
             pass
         return True
 
+    def plugin_gone(self) -> bool:
+        """The folder of this copy of ez-cognition was moved or deleted."""
+        try:
+            return not (self.plugin / "ezc.py").is_file()
+        except OSError:
+            return True
+
     def watch(self, httpd: ThreadingHTTPServer) -> None:
         """Tell the pages about changes. With an idle limit, stop the server
         when no page has been open for that long.
@@ -311,7 +391,7 @@ class App:
         pages = self.pages
         while not self.closing:
             time.sleep(self.tick)
-            if self.asked_to_stop():
+            if self.asked_to_stop() or self.plugin_gone():
                 break
             now = self.stamp()
             if now != last:
@@ -394,8 +474,12 @@ class Handler(BaseHTTPRequestHandler):
             return self._json({"user": self.app.user(project), "view": view if isinstance(view, dict) else {}})
         if path == "/api/events":
             return self._events()
+        if path == "/api/dir":
+            return self._json(self.app.listing((query.get("project") or [""])[0], (query.get("path") or [""])[0]))
         if path.startswith("/files/"):
             return self._media(path)
+        if path.startswith("/raw/"):
+            return self._raw(path)
         return self._static(path.lstrip("/"))
 
     def _media(self, path: str) -> None:
@@ -407,6 +491,24 @@ class Handler(BaseHTTPRequestHandler):
         if file is None or kind is None:
             return self._no(404, "not found")
         self._send(200, file.read_bytes(), kind, MEDIA_POLICY)
+
+    def _raw(self, path: str) -> None:
+        parts = [unquote(p) for p in path.split("/")[2:]]
+        if len(parts) < 2:
+            return self._no(404, "not found")
+        file = self.app.project_path(parts[0], "/".join(parts[1:]))
+        if file is None or not file.is_file():
+            return self._no(404, "not found")
+        try:
+            if file.stat().st_size > MAX_RAW:
+                return self._no(413, "the file is too large to show")
+            body = file.read_bytes()
+        except OSError:
+            return self._no(404, "not found")
+        suffix = file.suffix.lower()
+        kind = RAW_MIME.get(suffix) or ("application/octet-stream" if suffix in BINARY else "text/plain; charset=utf-8")
+        # The browser's PDF viewer does not work in a sandbox; a PDF runs no script of this site.
+        self._send(200, body, kind, None if kind == "application/pdf" else MEDIA_POLICY)
 
     def _static(self, relative: str) -> None:
         parts = relative.split("/")

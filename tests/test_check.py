@@ -111,21 +111,42 @@ class ModuleRulesTest(unittest.TestCase):
         record = task()
         items = record["submit"]["deliverables"]
         items.append(dict(items[0]))
-        items[1]["uses"] = ["report", "none"]
-        self.assertEqual(check_task(record), [
-            'submit.deliverables[1].uses: a deliverable cannot use itself',
-            'submit.deliverables[1].uses: "none" is not a deliverable id',
-            'submit.deliverables[2].id: "talk" is used by an earlier deliverable',
+        self.assertEqual(check_task(record), ['submit.deliverables[2].id: "talk" is used by an earlier deliverable'])
+
+    def test_the_keys_that_were_removed(self):
+        record = task()
+        record["steps"][0]["rubric"] = "Excellent."
+        record["steps"][0]["for"] = ["talk"]
+        record["submit"]["deliverables"][1]["uses"] = ["talk"]
+        self.assertEqual(sorted(check_task(record)), [
+            "steps[0].for: unknown key",
+            "steps[0].rubric: unknown key",
+            "submit.deliverables[1].uses: unknown key",
         ])
 
-    def test_a_step_for_an_unknown_deliverable(self):
+    def test_links_to_the_source(self):
         record = task()
-        record["steps"][1]["for"] = ["poster"]
-        self.assertEqual(check_task(record), ['steps[1].for: "poster" is not an id in submit.deliverables'])
-        del record["submit"]
+        for good in ("https://example.org/a", "docs/a b.pdf#page=3", "src/"):
+            record["steps"][0]["link"] = good
+            self.assertEqual(check_task(record), [], good)
+        for bad in ("/etc/passwd", "../x.pdf", "docs/../../x", ".git/config", "C:\\x.pdf", "javascript:alert(1)"):
+            record["steps"][0]["link"] = bad
+            self.assertEqual(len(check_task(record)), 1, bad)
+            self.assertIn("steps[0].link", check_task(record)[0])
+
+    def test_files(self):
+        record = task()
+        record["files"].append({"path": "docs/", "what": "Again."})
+        record["files"].append({"path": "out.csv", "what": "A table.", "step": "none"})
+        record["files"].append({"path": "../x", "what": "Outside."})
+        record["files"].append({"path": "a.py#L3", "what": "A line."})
+        problems = check_task(record)
+        self.assertEqual(len(problems), 2)
+        self.assertTrue(all(p.startswith("files[") and "path" in p for p in problems))
+        del record["files"][4:]
         self.assertEqual(check_task(record), [
-            'steps[0].for: "talk" is not an id in submit.deliverables',
-            'steps[1].for: "poster" is not an id in submit.deliverables',
+            'files[2].path: "docs/" is already in the list',
+            'files[3].step: no step has the id "none"',
         ])
 
     def test_task_needs_questions(self):

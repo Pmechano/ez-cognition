@@ -1,0 +1,7 @@
+.files-list { margin-bottom: 0; }
+
+.files-list li { margin-bottom: 0.25rem; }
+
+.files-list a { text-decoration: none; }
+
+.files-list a:hover code { text-decoration: underline; }

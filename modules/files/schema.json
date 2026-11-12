@@ -1,0 +1,30 @@
+{
+  "properties": {
+    "files": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "path",
+          "what"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "path": {
+            "type": "string",
+            "pattern": "^(?![/.])(?!.*(^|/)\\.)(?!.*\\\\)(?!.*#)[^:*?\"<>|]+$",
+            "patternHint": "must be a path from the project root with '/', for example src/split.py or results/ (a folder ends with '/'); not hidden, no '#'"
+          },
+          "what": {
+            "type": "string",
+            "minLength": 1
+          },
+          "step": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}

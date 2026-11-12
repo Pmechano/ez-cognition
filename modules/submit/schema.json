@@ -23,7 +23,6 @@
               "what": { "type": "string", "minLength": 1 },
               "due": { "type": "string", "minLength": 1 },
               "done": { "type": "boolean" },
-              "uses": { "type": "array", "items": { "type": "string", "minLength": 1 } },
               "from": { "type": "string", "minLength": 1 }
             }
           }

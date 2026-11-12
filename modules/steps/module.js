@@ -1,8 +1,9 @@
 // Panel: our solution, step by step. Each step is a section of the page and
 // an entry of the tree of contents, with its state.
-// Data: record.steps = [{ id, title, ask, rubric?, for?: [deliverable ids], notes?, from? }]
+// Data: record.steps = [{ id, title, ask, link?, notes?, from? }]
 //   ask     what the step asks, from the course materials (Markdown)
-//   rubric  what the top band of the rubric asks for this step (Markdown)
+//   link    the place in the source: a project file ("docs/a.pdf#page=3") or a web page;
+//           the heading shows it as "原文"
 //   notes   details for the agents; hidden unless the user turns notes on
 //
 // This module shows only what the step asks. What the group does about a
@@ -17,7 +18,7 @@
 //     render(step, task, el) // the part inside the step
 //   })
 
-import { registry, h, rich, md, sig, t, state, anchor, notes } from "/core/core.js";
+import { registry, h, rich, md, sig, t, state, anchor, notes, source } from "/core/core.js";
 
 // task title -> (step id -> signature) at the last render, to show what changed.
 const before = new Map();
@@ -36,18 +37,11 @@ function first(step, task, key) {
   return null;
 }
 
-function usedIn(step, task) {
-  if (!step.for?.length) return null;
-  const byId = new Map((task.submit?.deliverables ?? []).map((d) => [d.id, d.title]));
-  return step.for.map((id) => byId.get(id) ?? id).join("、");
-}
-
 function section(step, number, task, changed) {
   const now = signature(step, task);
   const marked = state.get("seen", {})[step.id];
   const stale = marked !== undefined && marked !== now;
   const badge = first(step, task, "badge");
-  const used = usedIn(step, task);
 
   const el = h("section", { class: changed ? "step flash" : "step", id: anchor("steps", step.id), "data-toc": "" });
   const ack = h(
@@ -82,6 +76,7 @@ function section(step, number, task, changed) {
       { class: "step-head" },
       h("span", { class: "step-no" }, String(number)),
       h("span", { class: "step-title" }, rich(step.title)),
+      source(step.link),
       badge && h("span", { class: `badge ${badge.kind ?? ""}` }, badge.text),
       stale && h("span", { class: "badge hot", title: t("steps.stale", "你上次标记之后，这一步有更新。") }, t("steps.changed", "有更新")),
     ),
@@ -90,9 +85,6 @@ function section(step, number, task, changed) {
       { class: "step-ask", "data-scope": "" },
       h("div", { class: "label" }, t("steps.ask", "这一步要做的")),
       md(step.ask),
-      step.rubric && h("div", { class: "label" }, t("steps.rubric", "拿高分要做到")),
-      step.rubric && md(step.rubric),
-      used && h("div", { class: "step-used dim" }, t("steps.for", "用在："), used),
       notes(step.notes),
     ),
     ours,

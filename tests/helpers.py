@@ -15,12 +15,12 @@ TASK = {
     "task": {
         "summary": "Show that a model refuses in chat but obeys a robot.",
         "cards": [
-            {"title": "What the course asks", "text": "- Pick a risk\n- Explain it with $x^2$"},
+            {"title": "What the course asks", "text": "- Pick a risk\n- Explain it with $x^2$", "link": "docs/syllabus.md"},
             {"title": "One example", "text": "A robot gets one instruction.", "image": {"src": "media/robot.png", "alt": "A robot"}},
         ],
     },
     "steps": [
-        {"id": "risk", "title": "Show the risk", "ask": "Explain the risk.", "rubric": "Excellent: clear and cited.", "for": ["talk"]},
+        {"id": "risk", "title": "Show the risk", "ask": "Explain the risk.", "link": "docs/task.pdf#page=3"},
         {"id": "defense", "title": "Compare the defenses", "ask": "Compare the defenses."},
     ],
     "answers": {
@@ -35,10 +35,14 @@ TASK = {
         "summary": "2026-12-07, 10 minutes",
         "deliverables": [
             {"id": "talk", "title": "Talk", "what": "Ten minutes.", "due": "2026-12-07"},
-            {"id": "report", "title": "Report", "what": "Eight pages.", "uses": ["talk"], "done": False},
+            {"id": "report", "title": "Report", "what": "Eight pages.", "done": False},
         ],
         "items": [{"label": "Grading", "value": "Talk 25%", "from": "docs/syllabus.md"}],
     },
+    "files": [
+        {"path": "docs/", "what": "The course materials."},
+        {"path": "src/risk.py", "what": "Runs the one instruction.", "step": "risk"},
+    ],
 }
 
 PNG = bytes.fromhex(

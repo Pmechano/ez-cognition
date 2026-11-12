@@ -2,14 +2,13 @@
 // only the deadlines and what to hand in, so each deliverable is one row.
 // Data: record.submit = {
 //   summary,
-//   deliverables: [{ id, title, what, due?, done?, uses?: [ids], from? }],
+//   deliverables: [{ id, title, what, due?, done?, from? }],
 //   items?: [{ label, value, from? }]       // grading and rules, short
 // }
 
 import { registry, h, rich, t } from "/core/core.js";
 
-function row(item, byId) {
-  const uses = (item.uses ?? []).map((id) => byId.get(id)?.title ?? id);
+function row(item) {
   return h(
     "tr",
     { class: item.done ? "done" : null },
@@ -19,7 +18,6 @@ function row(item, byId) {
       { class: "sub-what" },
       h("strong", null, rich(item.title)),
       h("div", null, rich(item.what)),
-      uses.length > 0 && h("div", { class: "dim" }, t("submit.uses", "基于："), uses.join("、")),
     ),
     h(
       "td",
@@ -43,7 +41,6 @@ registry.add("panel", {
   render(record, el) {
     const submit = record.submit;
     const list = submit.deliverables ?? [];
-    const byId = new Map(list.map((d) => [d.id, d]));
     const parts = [
       list.length > 0 &&
         h(
@@ -57,7 +54,7 @@ registry.add("panel", {
               null,
               h("tr", null, h("th", null, t("submit.due", "截止")), h("th", null, t("submit.what", "要交什么")), h("th", null, t("submit.state", "状态"))),
             ),
-            h("tbody", null, list.map((d) => row(d, byId))),
+            h("tbody", null, list.map((d) => row(d))),
           ),
         ),
       submit.items?.length > 0 &&

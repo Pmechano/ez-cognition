@@ -5,6 +5,9 @@
   border-radius: 2px;
 }
 
+/* A file name in code: the line under the box, square at the bottom. */
+code.term { border-bottom-color: var(--link); border-radius: 4px 4px 0 0; }
+
 .term:hover, .term:focus-visible, .term.open {
   border-bottom-color: var(--link);
   background: color-mix(in srgb, var(--link) 14%, transparent);

@@ -41,8 +41,8 @@ Do the setup on `main`.
 1. Put the original course materials in `docs/`. Examples: the assignment, the rubric, the syllabus, the feedback of the teaching assistant. Do not edit them. If some materials are not in the repo, ask the leader for them.
 2. Add ez-cognition to the project as a git submodule with its public address, so that the members get it when they clone: `git submodule add https://github.com/Pmechano/ez-cognition.git ez-cognition`. Do not use a local path: the members cannot fetch it.
 3. Run `init`. It creates `cognition-data/`, `human.md`, `handbook.md` and `journal.md`, adds `handbook.local.md` to `.gitignore`, and writes a part of `AGENTS.md` that explains the notes files and points to this guide (see "Project notes"). Commit `AGENTS.md`, `human.md`, `handbook.md` and `journal.md`: the members' agents only see committed files.
-4. Read all of `docs/`. Then write the record (see "The record"). The content comes only from the course materials, from what the leader tells you, and from the official descriptions of the public datasets, methods and papers that the materials name.
-5. Draft the framework with the leader: propose an answer for each step, and change it until the leader agrees. The group aims for the top band of the rubric. A step can stay without an answer.
+4. Read all of `docs/`, also the grading standard (the rubric): it says what the work must show. Then write the record (see "The record"). The content comes only from the course materials, from what the leader tells you, and from the official descriptions of the public datasets, methods and papers that the materials name.
+5. Draft the framework with the leader: propose an answer for each step, and change it until the leader agrees. A step can stay without an answer.
 6. Run `check`, then `open`. The setup is done when the leader has read the page and agrees with it.
 7. Write `handbook.md` (see "Project notes"). Add the Slack channel line to it as `collab-guide.md` says. Commit and push, with `cognition-data/` (except `.local/`). If `collab-guide.md` applies, send a `framework` message.
 
@@ -93,6 +93,7 @@ The page shows the parts in this order: the title and the goal, the task, our so
         "title": "1. 背景与目标",
         "text": "共享单车经常出现**站点没车可借**。课程要求：\n\n- 找出缺车集中的时间和站点\n- 预测每个站点下一小时的借车数\n- 提出一个调度建议，并用数据检验它",
         "image": { "src": "media/empty-station.png", "alt": "周一 8:00 大学城站：10 分钟内车被借光" },
+        "link": "docs/assignment.pdf#page=1",
         "from": "docs/assignment.pdf"
       },
       {
@@ -110,15 +111,14 @@ The page shows the parts in this order: the title and the goal, the task, our so
       "id": "method",
       "title": "说明方法",
       "ask": "说明用了什么数据和方法，让读者能重复这项分析。",
-      "rubric": "- 数据来源、预处理和方法**都写清楚**\n- 另一个人能按说明重新跑出结果",
-      "for": ["report"],
-      "from": "docs/rubric.pdf"
+      "link": "docs/assignment.pdf#page=2",
+      "from": "docs/assignment.pdf"
     }
   ],
   "answers": {
     "method": {
       "answer": "按站点和小时统计缺车次数，因为缺车只在一部分时段出现，按天统计会把它平均掉。",
-      "detail": "- 缺车的定义见词语注释\n- 是否加入天气数据：**还没定**，取决于下雨天的规律是否不同",
+      "detail": "`analysis/shortage.py` 读全年骑行记录，按站点和小时数出缺车次数，写成 `results/shortage.csv`（每行一个站点、一个小时）。统计规则在[第 12–30 行](analysis/shortage.py#L12-L30)。\n\n是否加入天气数据：**还没定**，取决于下雨天的规律是否不同。\n\n**进度**：统计代码和结果表已完成；天气数据还没下载。",
       "image": { "src": "media/hourly.svg", "alt": "工作日每小时的缺车次数，8 点最高" },
       "state": "doing",
       "directions": [
@@ -130,14 +130,20 @@ The page shows the parts in this order: the title and the goal, the task, our so
     "summary": "12 月 20 日交报告和代码，12 月 22 日海报展示",
     "deliverables": [
       { "id": "proposal", "title": "提案", "what": "一页：问题、数据、方法。", "done": true },
-      { "id": "report", "title": "报告和代码", "what": "8 页以内的报告，加上能重跑全部图表的代码。", "due": "12-20 23:59", "uses": ["proposal"] },
-      { "id": "poster", "title": "海报展示", "what": "一张海报，现场讲 5 分钟。", "due": "12-22 14:00", "uses": ["report"] }
+      { "id": "report", "title": "报告和代码", "what": "8 页以内的报告，加上能重跑全部图表的代码。", "due": "12-20 23:59" },
+      { "id": "poster", "title": "海报展示", "what": "一张海报，现场讲 5 分钟。", "due": "12-22 14:00" }
     ],
     "items": [
       { "label": "评分", "value": "报告 40%，代码 20%，海报 20%，组内互评 20%。", "from": "docs/rubric.pdf" },
       { "label": "迟交", "value": "每晚一天扣 10%。" }
     ]
-  }
+  },
+  "files": [
+    { "path": "docs/assignment.pdf", "what": "作业说明（原文）。" },
+    { "path": "data/", "what": "全年骑行记录，按月一个 CSV。" },
+    { "path": "analysis/shortage.py", "what": "按站点和小时统计缺车次数。", "step": "method" },
+    { "path": "results/shortage.csv", "what": "每个站点、每个小时的缺车次数。", "step": "method" }
+  ]
 }
 ```
 
@@ -149,16 +155,18 @@ The page shows the parts in this order: the title and the goal, the task, our so
 | `notes` | On a task card, a step or an answer: details for the agents (see "Agent notes"). |
 | `terms` | Each word that a member may not know: `term`, `means` (Markdown) and an optional `link` (an official page to read more). The page shows a note when the member points at the word. |
 | `task.summary` | One sentence: what the work does. The closed panel shows it. |
-| `task.cards` | The task as a translation-summary (see "Write the task"). Each card has a `title`, a Markdown `text`, and an optional `image` that shows under the text. |
-| `steps` | What the work must do or show, in order. `ask` says what the step asks. `rubric` says what the top band of the rubric asks for this step. `for` names the deliverables that show the step. |
+| `task.cards` | The task as a translation-summary (see "Write the task"). Each card has a `title`, a Markdown `text`, an optional `image` that shows under the text, and an optional `link`. |
+| `link` | On a task card or a step: the place in the source, a file of the project (`docs/task.pdf#page=3` opens the PDF at page 3) or a web address. The page shows it as "原文" after the title. |
+| `steps` | What the work must do or show, in order. `ask` says what the step asks. |
 | `answers.<step-id>.answer` | How the group does that step, in one or two sentences. The closed row shows its first line. |
 | `answers.<step-id>.detail` | More: the reasons, the settings, what is not decided and what it depends on. |
 | `answers.<step-id>.image` | A picture of the answer: a diagram, a plot, an example output. |
 | `answers.<step-id>.state` | `todo`, `doing` or `done`. |
 | `answers.<step-id>.directions` | Who explores what in that step: `id`, `who`, `explores`, `found`, `state`. |
 | `submit.summary` | One line: the next deadlines and what is due. |
-| `submit.deliverables` | Each deliverable, in time order. `due` is the deadline (short: `12-11 23:59`). `what` is one short line. `done` is `true` when it is handed in. `uses` names the earlier deliverables it builds on. |
+| `submit.deliverables` | Each deliverable, in time order. `due` is the deadline (short: `12-11 23:59`). `what` is one short line. `done` is `true` when it is handed in. |
 | `submit.items` | Grading, late rules and other rules, one short line each. |
+| `files` | The files and folders that the page names (see "Files"): `path`, `what`, and `step` for a file that a step added. |
 
 All keys except `title` and `goal` are optional. `from` is optional on cards, terms, steps, deliverables and items: it names the source for the agents, and the page does not show it. `check` reports a key that it does not know.
 
@@ -174,6 +182,7 @@ All keys except `title` and `goal` are optional. `from` is optional on cards, te
 - At the first use of a technical word, give its English original, for example `受试者留一（Leave-One-Subject-Out, LOSO）`. Explain the word in `terms`, not in the card, so that the card stays close to the source.
 - The course materials often only name a public dataset, method or paper. Read its official description and put the facts that a member needs in `terms`: what one item is, how large it is, which classes it has. Do not write such facts from memory.
 - Links do not go in the card text. Put each link in the `link` of the term that it belongs to: the official page of a dataset, the repository or paper of a method. When the source has a link, keep the name in the card and move the link to that term.
+- Give each card a `link` to its place in the source, for example `docs/task.pdf#page=3`. Give each step a `link` to the place where the source asks for it.
 - `terms` are for words that a member may not know. Do not add common words. A note that only repeats the English name is not needed.
 - End with a card "要点小结": the few things that a member must remember. Only this card contains your own words.
 
@@ -208,6 +217,17 @@ The card (`title`, then `text`):
 **小组人数**：每组 2 人。
 ```
 
+## Files
+
+`files` tells the members what there is in the project, so that they know the files that the page names.
+
+- Each entry: `path` from the project root, with `/` (a folder ends with `/`); `what`, one line; `step`, the id of the step that added it. An entry without `step` was there at the start.
+- The page shows the entries without `step` as the first task card, "0 开始时有的文件". Put only the key files there: for example the task description, the starter code, the description of the data. For the other files, give the folder (`third_party/AnomalyDINO/`), not each file.
+- Add a file when an answer or a finding uses it: the code that does a step, a table or a plot of results. Do not add every file.
+- In an answer, introduce a file where the text uses it, as documentation does: "`analysis/shortage.py` 读全年骑行记录，写成 `results/shortage.csv`（每行一个站点、一个小时）。" Do not make a separate list of files.
+- Where the page names a file of `files` (its path, or its file name when only one entry has that name), the member can point at it and read what it is and where it comes from. Write a path in `` `code` ``.
+- A link to a file of the project is its path: `[统计规则](analysis/shortage.py#L12-L30)`. The page opens it: code with line numbers, a CSV as a table, Markdown as text, a PDF in the browser (`#page=3` opens a page). A file that is not on the member's computer yet (not pushed, or not pulled) shows a message. The page never shows hidden files or `*.local.*` files.
+
 ## Agent notes
 
 The text that the page shows is the shared understanding of the user and the agents. Keep it short and clear for people. Put the details that an agent needs and a person does not in `notes` (Markdown) on the same task card, step or answer: exact settings, file paths, commands, constraints, the exact wording of a requirement. The page hides `notes`, unless the user turns them on in the settings.
@@ -240,11 +260,13 @@ Put the image files in `cognition-data/media/` and write the path as `media/<fil
 The page should be as clear as a good README. These rules are for our solution, the submit requirements and the 要点小结 card. The other task cards follow "Write the task".
 
 - Use Markdown: `**bold**` for the key facts, lists, tables, `` `code` ``, links and math in `$...$`. Use headings (`###`) only inside a long card.
-- Short is better. One idea per card. The first sentence says the conclusion.
-- Write full sentences in plain language, as you explain to a classmate.
+- Write each answer for a member who has read only the task cards. Complete is more important than short: the member must not need to look elsewhere to understand it.
+- Name what you mean. Not "the three methods" or "the three numbers", but "模板差分、官方 AnomalyDINO 和我们的改进版" and "seed 0、1、2". Do not use a word that only the agents know.
+- Give the reason for each choice. When the source gives the rule or the reason, name its section, for example "（6.2 节）".
+- Keep the progress apart from the method: end the `detail` with one line `**进度**：…`, what exists and what is still to do.
+- One idea per paragraph. The first sentence says the conclusion. Write full sentences in plain language, as you explain to a classmate.
 - Say what is not decided yet, and what it depends on.
-- Do not copy the source text, and do not put in every detail. The page does not show sources; agents read the details in `docs/`.
-- Write in the user's language.
+- Do not copy the source text. Write in the user's language.
 
 ## Project notes
 

@@ -20,7 +20,9 @@
 // steps module does this with "step-part".
 //
 // Text in a record is Markdown (see md.js). Images live in the project's
-// cognition-data/media/ folder and are written as "media/<file>".
+// cognition-data/media/ folder and are written as "media/<file>". A link to
+// a file of the project is its path from the project root, for example
+// [split.py](src/split.py#L20-L40); the page opens it in the file viewer.
 
 import { markdown, inline as mdInline, figure as mdFigure } from "/core/md.js";
 
@@ -68,14 +70,47 @@ function imageURL(src) {
   return `/files/${encodeURIComponent(app.projectId)}/${src.split("/").map(encodeURIComponent).join("/")}`;
 }
 
+// A file or folder of the project: "src/split.py#L20-L40", "docs/task.pdf#page=3",
+// "results/". Not hidden, not outside the project.
+const LOCAL = /^(?![/.])(?!.*(^|\/)\.)(?!.*\\)[^:*?"<>|]+$/;
+const RAW = /\.(pdf|png|jpe?g|gif|webp|svg)$/i;
+
+// The address that shows a file of the open project: the browser shows a PDF
+// or an image itself; the file viewer shows the rest. Null when the path may
+// not be shown.
+export function fileURL(target) {
+  const text = String(target ?? "");
+  const at = text.indexOf("#");
+  const path = at < 0 ? text : text.slice(0, at);
+  const hash = at < 0 ? "" : text.slice(at);
+  if (!LOCAL.test(path) || !app.projectId) return null;
+  const parts = path.split("/").filter(Boolean);
+  if (!path.endsWith("/") && RAW.test(path)) {
+    return `/raw/${encodeURIComponent(app.projectId)}/${parts.map(encodeURIComponent).join("/")}${hash}`;
+  }
+  const query = new URLSearchParams({ project: app.projectId, path });
+  return `/core/view.html?${query}${hash}`;
+}
+
+const TEXT = { image: imageURL, link: fileURL };
+
 // One line of Markdown: bold, italic, code, links, math.
 export function rich(text) {
-  return mdInline(text, { image: imageURL });
+  return mdInline(text, TEXT);
 }
 
 // Blocks of Markdown: paragraphs, lists, tables, headings, images.
 export function md(text) {
-  return markdown(text, { image: imageURL });
+  return markdown(text, TEXT);
+}
+
+// "原文 ↗" after a heading: the place in the source, a file of the project
+// (a PDF opens at its page) or a web page.
+export function source(link) {
+  if (!link) return null;
+  const url = /^https?:\/\//i.test(link) ? link : fileURL(link);
+  if (!url) return null;
+  return h("a", { class: "source-link", href: url, target: "_blank", rel: "noopener noreferrer", title: link }, t("core.source", "原文"), " ↗");
 }
 
 // An image from a record: { src: "media/x.png", alt }.
@@ -90,11 +125,18 @@ export function points(list) {
 // A card: a title, Markdown text, and an image in the text, under it (like
 // an image in a README). A card is one part of the page for the
 // annotators. With an `id`, the card is an entry of the tree of contents.
-export function card({ title, text, image, notes: extra }, cls = "", id = null) {
+export function card({ title, text, image, notes: extra, link }, cls = "", id = null) {
   return h(
     "article",
     { class: `card${cls ? " " + cls : ""}`, "data-scope": "", id, "data-toc": id ? "" : null },
-    h("div", { class: "card-text" }, title && h("h3", { class: "card-title" }, rich(title)), md(text), picture(image), notes(extra)),
+    h(
+      "div",
+      { class: "card-text" },
+      title && h("h3", { class: "card-title" }, rich(title), source(link)),
+      md(text),
+      picture(image),
+      notes(extra),
+    ),
   );
 }
 
@@ -668,11 +710,67 @@ function watchScroll() {
   );
 }
 
+// ---------- reminder ----------
+//
+// When an agent runs `open` and the page is already open, the page changes
+// to that project. A page cannot bring its window to the front, so, when the
+// user is not looking at it, it reminds the user in the usual way: a mark in
+// the title of the tab, and a system notification (a click on it shows the
+// tab). The browser asks for the permission once, after the first click on
+// the page.
+
+let marked = false;
+let followed = false; // this load followed a new `open`
+
+function setTitle() {
+  const name = project()?.name;
+  const title = [app.task?.title, name, "ez-cognition"].filter(Boolean).join(" · ");
+  document.title = marked ? `● ${title}` : title;
+}
+
+function looking() {
+  return document.visibilityState === "visible" && document.hasFocus();
+}
+
+function remind() {
+  if (looking()) return;
+  marked = true;
+  setTitle();
+  if (!("Notification" in window) || Notification.permission !== "granted") return;
+  try {
+    const note = new Notification(t("core.remind", "ez-cognition 页面已打开"), {
+      body: [project()?.name, app.task?.title].filter(Boolean).join(" · "),
+      tag: "ezc-open",
+    });
+    note.onclick = () => {
+      window.focus();
+      note.close();
+    };
+  } catch {
+    // The title mark is enough.
+  }
+}
+
+function unmark() {
+  if (!marked) return;
+  marked = false;
+  setTitle();
+}
+
+document.addEventListener("visibilitychange", () => document.visibilityState === "visible" && unmark());
+window.addEventListener("focus", unmark);
+document.addEventListener(
+  "click",
+  () => {
+    if ("Notification" in window && Notification.permission === "default") Notification.requestPermission().catch(() => {});
+  },
+  { once: true },
+);
+
 let firstRender = true;
 
 function render() {
-  const name = project()?.name;
-  document.title = [app.task?.title, name, "ez-cognition"].filter(Boolean).join(" · ");
+  setTitle();
   const root = document.getElementById("app");
   const scroll = window.scrollY;
   const treeScroll = document.querySelector(".side-tree")?.scrollTop ?? 0;
@@ -701,6 +799,7 @@ async function getJSON(url) {
 const asked = () => new URLSearchParams(location.search);
 
 function seeFocus(at) {
+  followed = true;
   focusSeen = at;
   try {
     sessionStorage.setItem(FOCUS_KEY, String(at));
@@ -785,6 +884,10 @@ async function load() {
   remember();
   applyUser();
   render();
+  if (followed) {
+    followed = false;
+    remind();
+  }
 }
 
 async function choose(projectId, taskId) {
