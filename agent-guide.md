@@ -222,7 +222,7 @@ The card (`title`, then `text`):
 `files` tells the members what there is in the project, so that they know the files that the page names.
 
 - Each entry: `path` from the project root, with `/` (a folder ends with `/`); `what`, one line; `step`, the id of the step that added it. An entry without `step` was there at the start.
-- The page shows the entries without `step` as the first task card, "0 开始时有的文件". Put only the key files there: for example the task description, the starter code, the description of the data. For the other files, give the folder (`third_party/AnomalyDINO/`), not each file.
+- The page shows the entries without `step` as step 0 of our solution, "0 开始时有的文件". Put only the key files there: for example the task description, the starter code, the description of the data. For the other files, give the folder (`third_party/AnomalyDINO/`), not each file.
 - Add a file when an answer or a finding uses it: the code that does a step, a table or a plot of results. Do not add every file.
 - In an answer, introduce a file where the text uses it, as documentation does: "`analysis/shortage.py` 读全年骑行记录，写成 `results/shortage.csv`（每行一个站点、一个小时）。" Do not make a separate list of files.
 - Where the page names a file of `files` (its path, or its file name when only one entry has that name), the member can point at it and read what it is and where it comes from. Write a path in `` `code` ``.

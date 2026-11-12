@@ -17,6 +17,15 @@
 //     badge(step, task),     // { text, kind, mark } for the step, or null; mark: done | doing | todo
 //     render(step, task, el) // the part inside the step
 //   })
+//
+// Other modules can put a section before step 1, numbered 0. It has no
+// state and no "我已认知":
+//
+//   registry.add("step-zero", {
+//     id, order,
+//     title(task),           // the title, or null: then the section is not shown
+//     render(task, el)       // the content of the section
+//   })
 
 import { registry, h, rich, md, sig, t, state, anchor, notes, source } from "/core/core.js";
 
@@ -24,6 +33,30 @@ import { registry, h, rich, md, sig, t, state, anchor, notes, source } from "/co
 const before = new Map();
 
 const parts = () => registry.list("step-part");
+
+const zeros = (task) => registry.list("step-zero").filter((zero) => zero.title(task));
+
+const zeroId = (zero) => `x-${zero.id}`;
+
+function zeroSection(zero, task) {
+  const box = h("div", { class: "step-ours", "data-scope": "" });
+  try {
+    zero.render(task, box);
+  } catch (err) {
+    box.append(h("p", { class: "hot" }, `${zero.id}: ${err}`));
+  }
+  return h(
+    "section",
+    { class: "step step-zero", id: anchor("steps", zeroId(zero)), "data-toc": "" },
+    h(
+      "h3",
+      { class: "step-head" },
+      h("span", { class: "step-no" }, "0"),
+      h("span", { class: "step-title" }, rich(zero.title(task))),
+    ),
+    box,
+  );
+}
 
 function signature(step, task) {
   return sig([step, parts().map((part) => (part.data ? part.data(step, task) : null))]);
@@ -108,13 +141,16 @@ registry.add("panel", {
     return done ? `${count}，${t("steps.done", "已完成 {n} 步").replace("{n}", done)}` : count;
   },
   tocNote: (task) => `${doneCount(task)}/${task.steps.length}`,
-  toc: (task) =>
-    task.steps.map((step, index) => ({
+  toc: (task) => [
+    ...zeros(task).map((zero) => ({ id: zeroId(zero), title: `0 ${zero.title(task)}` })),
+    ...task.steps.map((step, index) => ({
       id: step.id,
       title: `${index + 1} ${step.title}`,
       mark: first(step, task, "badge")?.mark ?? "todo",
     })),
+  ],
   render(task, el) {
+    for (const zero of zeros(task)) el.append(zeroSection(zero, task));
     const old = before.get(task.title);
     const now = new Map();
     task.steps.forEach((step, index) => {

@@ -6,7 +6,7 @@
 //   what  one line: what it is (Markdown)
 //   step  the id of the step that added it; without it, it was there at the start
 //
-// The task gets a first card, "0 开始时有的文件": the files and folders that
+// "我们的方案" gets a step 0, "开始时有的文件": the files and folders that
 // have no step. Where the page names a file (its path, or its file name when
 // only one file has that name), the name gets a note, like a term: what it
 // is, where it comes from, and a link that opens it.
@@ -15,11 +15,11 @@ import { registry, h, rich, fileURL, anchor, t } from "/core/core.js";
 
 const startFiles = (record) => (record.files ?? []).filter((f) => !f.step);
 
-registry.add("task-card", {
+registry.add("step-zero", {
   id: "files",
   order: 0,
-  title: (record) => (startFiles(record).length ? t("files.start", "0 开始时有的文件") : null),
-  render(record, id) {
+  title: (record) => (startFiles(record).length ? t("files.start", "开始时有的文件") : null),
+  render(record, el) {
     const rows = startFiles(record).map((f) => {
       const url = fileURL(f.path);
       const name = h("code", null, f.path);
@@ -31,21 +31,14 @@ registry.add("task-card", {
         rich(f.what),
       );
     });
-    return h(
-      "article",
-      { class: "card files-card", "data-scope": "", id, "data-toc": "" },
-      h(
-        "div",
-        { class: "card-text" },
-        h("h3", { class: "card-title" }, t("files.start", "0 开始时有的文件")),
-        h("ul", { class: "files-list" }, rows),
-      ),
-    );
+    el.append(h("ul", { class: "files-list" }, rows));
   },
 });
 
 function fromText(file, steps) {
-  if (!file.step) return t("files.atStart", "开始时就有。");
+  if (!file.step) {
+    return t("files.atStart", "开始时就有（{step}）。").replace("{step}", `[第 0 步](#${anchor("steps", "x-files")})`);
+  }
   const index = steps.findIndex((s) => s.id === file.step);
   if (index < 0) return "";
   const where = `第 ${index + 1} 步「${steps[index].title}」`;
